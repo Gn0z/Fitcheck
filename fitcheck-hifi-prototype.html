@@ -1,0 +1,2341 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="FitCheck" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./app-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <title>FitCheck</title>
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --ink: #111827;
+      --muted: #4b5563;
+      --soft: #9ca3af;
+      --line: #e5e7eb;
+      --primary: #111827;
+      --primary-2: #4b5563;
+      --pale: #e5e7eb;
+      --mid: #6b7280;
+      --shadow: 0 18px 48px rgba(17, 24, 39, .14);
+      --shadow-soft: 0 10px 30px rgba(17, 24, 39, .10);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app-shell {
+      width: min(100vw, 430px);
+      min-height: 100vh;
+      min-height: 100dvh;
+      background:
+        radial-gradient(circle at 88% 2%, rgba(17, 24, 39, .08), transparent 150px),
+        var(--bg);
+      position: relative;
+      overflow-x: hidden;
+      box-shadow: 0 0 0 1px rgba(17, 24, 39, .05);
+    }
+
+    .screen {
+      display: none;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: calc(22px + env(safe-area-inset-top)) 24px calc(96px + env(safe-area-inset-bottom));
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 44px;
+      margin-bottom: 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 30px;
+      line-height: 36px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      transform: translateY(7px);
+    }
+
+    .icon-button {
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+      cursor: pointer;
+    }
+
+    .icon-button svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 34px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .page-subtitle {
+      margin: 8px 0 0;
+      max-width: 310px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 21px;
+    }
+
+    .section-title {
+      margin: 28px 0 14px;
+      font-size: 18px;
+      line-height: 24px;
+      font-weight: 900;
+    }
+
+    .hero-card {
+      margin-top: 24px;
+      min-height: 124px;
+      border-radius: 30px;
+      padding: 24px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -32px;
+      top: -34px;
+      width: 118px;
+      height: 118px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .14);
+    }
+
+    .hero-card strong {
+      display: block;
+      font-size: 26px;
+      line-height: 32px;
+    }
+
+    .hero-card span {
+      display: block;
+      margin-top: 9px;
+      max-width: 230px;
+      color: rgba(255, 255, 255, .78);
+      font-size: 13px;
+      line-height: 19px;
+    }
+
+    .card {
+      border-radius: 28px;
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .workout-card {
+      width: 100%;
+      min-height: 126px;
+      border: 0;
+      border-radius: 26px;
+      margin-bottom: 14px;
+      padding: 22px 44px 20px 112px;
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+      position: relative;
+      overflow: hidden;
+      text-align: left;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .workout-card::before {
+      content: "";
+      position: absolute;
+      left: 24px;
+      top: 24px;
+      bottom: 24px;
+      width: 3px;
+      border-radius: 999px;
+      background: var(--accent, var(--primary));
+    }
+
+    .workout-icon {
+      position: absolute;
+      left: 44px;
+      top: 22px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--pale);
+    }
+
+    .workout-icon::before,
+    .workout-icon::after {
+      content: "";
+      position: absolute;
+      bottom: 12px;
+      border-radius: 999px;
+      background: var(--accent, var(--primary));
+    }
+
+    .workout-icon::before {
+      left: 16px;
+      width: 13px;
+      height: 17px;
+    }
+
+    .workout-icon::after {
+      left: 31px;
+      width: 8px;
+      height: 27px;
+    }
+
+    .workout-card h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 23px;
+    }
+
+    .workout-card p {
+      margin: 6px 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 18px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 30px;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: var(--pale);
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .chevron {
+      position: absolute;
+      right: 22px;
+      top: 50%;
+      color: var(--soft);
+      font-size: 26px;
+      font-weight: 900;
+      transform: translateY(-50%);
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      height: 52px;
+      border: 0;
+      border-radius: 999px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .primary-button {
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      box-shadow: var(--shadow);
+    }
+
+    .secondary-button {
+      color: var(--primary);
+      background: var(--pale);
+    }
+
+    .action-stack {
+      display: grid;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .detail-card {
+      margin-top: 22px;
+      overflow: hidden;
+    }
+
+    .detail-visual {
+      min-height: 168px;
+      padding: 28px 120px 24px 24px;
+      background: var(--pale);
+      position: relative;
+    }
+
+    .detail-visual h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 30px;
+      font-weight: 900;
+    }
+
+    .detail-visual p {
+      margin: 8px 0 14px;
+      color: var(--primary);
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 800;
+    }
+
+    .pose {
+      position: absolute;
+      right: 28px;
+      top: 42px;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    .pose::before,
+    .pose::after {
+      content: "";
+      position: absolute;
+      bottom: 18px;
+      border-radius: 999px;
+    }
+
+    .pose::before {
+      left: 24px;
+      width: 11px;
+      height: 30px;
+      background: var(--mid);
+    }
+
+    .pose::after {
+      left: 40px;
+      width: 9px;
+      height: 39px;
+      background: #fff;
+    }
+
+    .exercise-list {
+      padding: 24px;
+    }
+
+    .exercise-list h3 {
+      margin: 0 0 18px;
+      font-size: 18px;
+      line-height: 24px;
+    }
+
+    .exercise-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 42px;
+      font-size: 15px;
+      line-height: 20px;
+      font-weight: 800;
+    }
+
+    .number-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: var(--primary);
+      background: var(--pale);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .number-dot.done {
+      color: #fff;
+      background: var(--primary);
+    }
+
+    .progress-card {
+      margin-top: 26px;
+      padding: 34px 24px 28px;
+      text-align: center;
+    }
+
+    .ring {
+      --progress: 100%;
+      width: 154px;
+      height: 154px;
+      margin: 0 auto;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(from -90deg, var(--primary) 0 var(--progress), var(--pale) var(--progress) 100%);
+      position: relative;
+    }
+
+    .ring.reps-mode {
+      background: var(--pale);
+    }
+
+    .ring.rest-mode {
+      background: conic-gradient(from -90deg, var(--mid) 0 var(--progress), var(--pale) var(--progress) 100%);
+    }
+
+    .ring::before {
+      content: "";
+      position: absolute;
+      inset: 19px;
+      border-radius: 50%;
+      background: var(--surface);
+    }
+
+    .ring span {
+      position: relative;
+      color: var(--primary);
+      font-size: 32px;
+      line-height: 44px;
+      font-weight: 900;
+    }
+
+    .training-phase {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 18px;
+      font-weight: 900;
+    }
+
+    .progress-card h2 {
+      margin: 18px 0 6px;
+      font-size: 22px;
+      line-height: 28px;
+    }
+
+    .progress-card p,
+    .next-card p,
+    .success-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 21px;
+    }
+
+    .next-card {
+      margin-top: 18px;
+      padding: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 18px;
+      font-weight: 900;
+    }
+
+    .next-card h2 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      line-height: 30px;
+    }
+
+    .success-card {
+      margin-top: 70px;
+      padding: 38px 28px;
+      text-align: center;
+    }
+
+    .success-orb {
+      width: 150px;
+      height: 150px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--pale);
+    }
+
+    .success-check {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      font-size: 58px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .success-card h2 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      line-height: 36px;
+    }
+
+    .metric-card {
+      margin-top: 24px;
+      min-height: 138px;
+      padding: 26px 24px;
+      position: relative;
+    }
+
+    .metric-card h2 {
+      margin: 4px 0 0;
+      color: var(--primary);
+      font-size: 44px;
+      line-height: 48px;
+    }
+
+    .bars {
+      position: absolute;
+      right: 34px;
+      bottom: 36px;
+      height: 76px;
+      display: flex;
+      align-items: end;
+      gap: 10px;
+    }
+
+    .bars i {
+      width: 18px;
+      border-radius: 999px;
+      background: var(--pale);
+    }
+
+    .bars i:nth-child(1) { height: 52px; background: var(--primary); }
+    .bars i:nth-child(2) { height: 66px; background: var(--primary-2); }
+    .bars i:nth-child(3) { height: 32px; background: var(--mid); }
+    .bars i:nth-child(4) { height: 46px; }
+    .bars i:nth-child(5) { height: 22px; }
+
+    .list-card {
+      overflow: hidden;
+      padding: 0 20px;
+    }
+
+    .record-row {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .record-row:first-child { border-top: 0; }
+
+    .record-status {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--primary);
+      flex: 0 0 auto;
+    }
+
+    .record-status.soft {
+      background: var(--pale);
+    }
+
+    .record-name {
+      flex: 1;
+      font-size: 14px;
+      line-height: 19px;
+      font-weight: 800;
+    }
+
+    .record-date {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .profile-card {
+      margin-top: 24px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .avatar {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--pale);
+      flex: 0 0 auto;
+    }
+
+    .avatar::after {
+      content: "";
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    }
+
+    .profile-card h2 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 28px;
+    }
+
+    .profile-card p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 19px;
+    }
+
+    .stats {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .stat {
+      min-height: 86px;
+      border-radius: 22px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+      text-align: center;
+    }
+
+    .stat strong {
+      font-size: 22px;
+      line-height: 28px;
+    }
+
+    .stat span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .settings-card {
+      margin-top: 20px;
+      overflow: hidden;
+      padding: 0 20px;
+    }
+
+    .settings-row {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .settings-row:first-child { border-top: 0; }
+
+    .settings-row span {
+      margin-left: auto;
+      color: var(--soft);
+      font-size: 22px;
+    }
+
+    .settings-button {
+      width: 100%;
+      border: 0;
+      padding: 0;
+      color: inherit;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .backup-card {
+      margin-top: 22px;
+      padding: 22px;
+    }
+
+    .backup-card h2 {
+      margin: 0 0 8px;
+      font-size: 19px;
+      line-height: 25px;
+    }
+
+    .backup-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 21px;
+    }
+
+    .backup-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 18px 0;
+    }
+
+    .backup-summary div {
+      border-radius: 16px;
+      padding: 12px 8px;
+      background: var(--surface-soft);
+      text-align: center;
+    }
+
+    .backup-summary strong,
+    .backup-summary span {
+      display: block;
+    }
+
+    .backup-summary strong {
+      font-size: 20px;
+      line-height: 26px;
+    }
+
+    .backup-summary span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .file-button {
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .file-button input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .backup-status {
+      display: none;
+      margin-top: 14px;
+      border-radius: 16px;
+      padding: 12px 14px;
+      color: var(--primary);
+      background: var(--pale);
+      font-size: 13px;
+      line-height: 19px;
+    }
+
+    .backup-status.visible {
+      display: block;
+    }
+
+    .empty-card {
+      padding: 28px 24px;
+      text-align: center;
+    }
+
+    .empty-card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 24px;
+    }
+
+    .empty-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 21px;
+    }
+
+    .plan-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .plan-item {
+      padding: 20px;
+    }
+
+    .plan-item-main {
+      width: 100%;
+      border: 0;
+      padding: 0 28px 0 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      color: inherit;
+      background: transparent;
+      position: relative;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .plan-item h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 24px;
+    }
+
+    .plan-meta {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 19px;
+    }
+
+    .plan-goal {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 21px;
+    }
+
+    .plan-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .text-button {
+      min-height: 38px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 16px;
+      color: var(--primary);
+      background: var(--pale);
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .text-button.danger {
+      margin-left: auto;
+      color: #fff;
+      background: var(--primary);
+    }
+
+    .form-card {
+      margin-top: 22px;
+      padding: 22px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    .field label,
+    .field-label {
+      font-size: 13px;
+      line-height: 18px;
+      font-weight: 900;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      color: var(--ink);
+      background: var(--surface-soft);
+      outline: none;
+    }
+
+    .field input,
+    .field select {
+      display: block;
+      height: 56px;
+      min-height: 56px;
+      margin: 0;
+      padding: 0 14px;
+      line-height: normal;
+    }
+
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(17, 24, 39, .08);
+    }
+
+    .field textarea {
+      padding: 13px 14px;
+      min-height: 84px;
+      resize: vertical;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    .field-row > .field {
+      grid-template-rows: 18px 56px;
+      align-content: start;
+      margin-bottom: 0;
+    }
+
+    .exercise-editor-list {
+      display: grid;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .exercise-editor {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 18px;
+      background: var(--surface-soft);
+    }
+
+    .exercise-editor-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .exercise-editor-header strong {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .remove-exercise {
+      border: 0;
+      color: var(--muted);
+      background: transparent;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .editor-actions {
+      display: grid;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .form-error {
+      display: none;
+      margin: 14px 0 0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: #fff;
+      background: var(--primary);
+      font-size: 13px;
+      line-height: 19px;
+    }
+
+    .form-error.visible {
+      display: block;
+    }
+
+    .bottom-nav.hidden {
+      display: none;
+    }
+
+    .workout-card.completed {
+      opacity: .62;
+    }
+
+    .workout-card.completed .tag {
+      color: #fff;
+      background: var(--primary);
+    }
+
+    .today-plan-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .today-plan-list .workout-card {
+      margin-bottom: 0;
+    }
+
+    .schedule-note {
+      margin: 18px 0 0;
+      border-radius: 18px;
+      padding: 14px 16px;
+      color: var(--muted);
+      background: var(--pale);
+      font-size: 13px;
+      line-height: 19px;
+    }
+
+    .record-empty {
+      padding: 28px 20px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+      line-height: 21px;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      width: min(calc(100vw - 32px), 398px);
+      height: 62px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .94);
+      box-shadow: 0 18px 52px rgba(17, 24, 39, .18);
+      transform: translateX(-50%);
+      backdrop-filter: blur(16px);
+      z-index: 20;
+    }
+
+    .nav-item {
+      border: 0;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--soft);
+      background: transparent;
+      font-size: 13px;
+      line-height: 1;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .nav-item.active {
+      color: var(--primary);
+      background: var(--pale);
+    }
+
+    .nav-item:focus-visible,
+    .icon-button:focus-visible,
+    .primary-button:focus-visible,
+    .secondary-button:focus-visible,
+    .workout-card:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+    }
+
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    @media (min-width: 700px) {
+      body {
+        padding: 28px 0;
+        background:
+          radial-gradient(circle at 30% 10%, rgba(17, 24, 39, .10), transparent 300px),
+          #eef0f3;
+      }
+
+      .app-shell {
+        min-height: calc(100vh - 56px);
+        border-radius: 38px;
+        overflow: hidden;
+      }
+
+      .screen {
+        min-height: calc(100vh - 56px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell" aria-live="polite">
+    <section class="screen active" data-screen="home" aria-label="首页">
+      <header class="topbar">
+        <div class="brand">FitCheck <span class="brand-dot"></span></div>
+        <button class="icon-button" type="button" data-screen-target="plans" aria-label="查看计划">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <h1 class="page-title">今日训练</h1>
+
+      <div class="hero-card">
+        <strong id="home-streak">连续打卡 0 天</strong>
+        <span>今天完成后将解锁第 4 天徽章</span>
+      </div>
+
+      <h2 class="section-title">训练任务</h2>
+      <div class="today-plan-list" id="today-plan-list"></div>
+    </section>
+
+    <section class="screen" data-screen="plans" aria-label="计划">
+      <header class="topbar">
+        <button class="icon-button" type="button" data-screen-target="home" aria-label="返回首页">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="icon-button" type="button" data-action="new-plan" aria-label="添加计划">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <h1 class="page-title">训练计划</h1>
+      <p class="page-subtitle">创建自己的训练内容，动作、组数和休息都由你决定。</p>
+
+      <h2 class="section-title">已有计划</h2>
+      <div class="plan-list" id="plan-list"></div>
+    </section>
+
+    <section class="screen" data-screen="plan-editor" aria-label="编辑训练计划">
+      <header class="topbar">
+        <button class="icon-button" type="button" data-screen-target="plans" aria-label="返回计划列表">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <h1 class="page-title" id="editor-title">添加训练计划</h1>
+      <p class="page-subtitle">计划保存在当前设备中，之后可以随时修改。</p>
+
+      <form id="plan-form" novalidate>
+        <section class="form-card card">
+          <div class="field">
+            <label for="plan-name">计划名称</label>
+            <input id="plan-name" name="name" type="text" maxlength="40" placeholder="例如：胸肩力量训练" required />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="plan-minutes">预计分钟数</label>
+              <input id="plan-minutes" name="estimatedMinutes" type="number" min="1" max="600" value="30" required />
+            </div>
+            <div class="field">
+              <label for="plan-tag">标签</label>
+              <input id="plan-tag" name="tag" type="text" maxlength="12" placeholder="例如：力量" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="plan-goal">目标或备注</label>
+            <textarea id="plan-goal" name="goal" maxlength="200" placeholder="写下训练目标、注意事项等"></textarea>
+          </div>
+        </section>
+
+        <h2 class="section-title">训练动作</h2>
+        <div class="exercise-editor-list" id="exercise-editor-list"></div>
+        <button class="secondary-button" type="button" data-action="add-exercise">添加动作</button>
+        <p class="form-error" id="plan-form-error" role="alert"></p>
+
+        <div class="editor-actions">
+          <button class="primary-button" type="submit">保存训练计划</button>
+          <button class="secondary-button" type="button" data-screen-target="plans">取消</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="screen" data-screen="schedule-editor" aria-label="安排训练日期">
+      <header class="topbar">
+        <button class="icon-button" type="button" data-screen-target="plans" aria-label="返回计划列表">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <h1 class="page-title">安排训练</h1>
+      <p class="page-subtitle">选择一个训练计划，并安排到具体日期。</p>
+
+      <form id="schedule-form" novalidate>
+        <section class="form-card card">
+          <div class="field">
+            <label for="schedule-plan">训练计划</label>
+            <select id="schedule-plan" name="planId" required></select>
+          </div>
+          <div class="field">
+            <label for="schedule-date">训练日期</label>
+            <input id="schedule-date" name="date" type="date" required />
+          </div>
+          <p class="schedule-note">同一天可以安排多个计划；完成任意一个计划，当天只计算一次连续打卡。</p>
+        </section>
+        <p class="form-error" id="schedule-form-error" role="alert"></p>
+        <div class="editor-actions">
+          <button class="primary-button" type="submit">保存日期安排</button>
+          <button class="secondary-button" type="button" data-screen-target="plans">取消</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="screen" data-screen="detail" aria-label="打卡详情">
+      <header class="topbar">
+        <button class="icon-button" type="button" data-screen-target="home" aria-label="返回首页">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <h1 class="page-title" id="detail-title">核心唤醒</h1>
+      <p class="page-subtitle" id="detail-subtitle">打卡前先了解训练安排。</p>
+
+      <section class="detail-card card">
+        <div class="detail-visual">
+          <h2 id="detail-card-title">核心唤醒训练</h2>
+          <p id="detail-goal">适合目标：增强核心稳定、建立训练习惯</p>
+          <span class="tag" id="detail-tag">新手友好</span>
+          <div class="pose" aria-hidden="true"></div>
+        </div>
+        <div class="exercise-list" id="detail-exercises">
+          <h3>训练内容</h3>
+        </div>
+      </section>
+
+      <div class="action-stack">
+        <button class="primary-button" type="button" data-action="start-current-plan">开始训练</button>
+        <button class="secondary-button" type="button" data-action="edit-current-plan">编辑此计划</button>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="checkin" aria-label="训练中">
+      <header class="topbar">
+        <button class="icon-button" type="button" data-action="exit-training-to-detail" aria-label="返回详情">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <h1 class="page-title" id="checkin-title">训练中</h1>
+      <p class="page-subtitle">跟着节奏完成每一组。</p>
+
+      <section class="progress-card card">
+        <p class="training-phase" id="training-phase">动作 1/1 · 第 1/1 组</p>
+        <div class="ring" id="training-ring"><span id="training-display">00:00</span></div>
+        <h2 id="checkin-current">当前动作</h2>
+        <p id="checkin-current-note">按自己的节奏完成训练</p>
+      </section>
+
+      <section class="next-card card">
+        <p class="eyebrow" id="checkin-next-label">下一组</p>
+        <h2 id="checkin-next">完成当前动作后继续</h2>
+        <p id="checkin-next-note">训练完成后记录打卡</p>
+      </section>
+
+      <div class="action-stack">
+        <button class="primary-button" id="training-primary" type="button" data-action="finish-training-step">完成动作</button>
+        <button class="secondary-button" id="training-pause" type="button" data-action="toggle-training-pause">暂停倒计时</button>
+        <button class="secondary-button" type="button" data-action="exit-training">先退出</button>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="success" aria-label="打卡成功">
+      <header class="topbar">
+        <div class="brand">FitCheck <span class="brand-dot"></span></div>
+      </header>
+
+      <section class="success-card card">
+        <div class="success-orb">
+          <div class="success-check">✓</div>
+        </div>
+        <h2>打卡成功</h2>
+        <p id="success-message">今天的训练已完成。</p>
+      </section>
+
+      <div class="action-stack">
+        <button class="primary-button" type="button" data-screen-target="home">回到首页</button>
+        <button class="secondary-button" type="button" data-screen-target="record">查看记录</button>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="record" aria-label="记录">
+      <header class="topbar">
+        <div class="brand">FitCheck <span class="brand-dot"></span></div>
+      </header>
+
+      <h1 class="page-title">训练记录</h1>
+      <p class="page-subtitle">看见自己的坚持。</p>
+
+      <section class="metric-card card">
+        <p class="eyebrow">连续打卡</p>
+        <h2 id="record-streak">0 天</h2>
+        <div class="bars"><i></i><i></i><i></i><i></i><i></i></div>
+      </section>
+
+      <h2 class="section-title">打卡记录</h2>
+      <section class="list-card card" id="record-list"></section>
+    </section>
+
+    <section class="screen" data-screen="profile" aria-label="我的">
+      <header class="topbar">
+        <div class="brand">FitCheck <span class="brand-dot"></span></div>
+      </header>
+
+      <h1 class="page-title">我的</h1>
+      <p class="page-subtitle">管理你的训练偏好。</p>
+
+      <section class="profile-card card">
+        <div class="avatar"></div>
+        <div>
+          <h2>健身新手</h2>
+          <p id="profile-summary">已打卡 0 天 · 数据保存在本机</p>
+        </div>
+      </section>
+
+      <section class="stats">
+        <div class="stat"><strong id="stat-days">0天</strong><span>累计打卡</span></div>
+        <div class="stat"><strong id="stat-minutes">0分</strong><span>累计训练</span></div>
+        <div class="stat"><strong id="stat-completions">0个</strong><span>完成课程</span></div>
+      </section>
+
+      <section class="settings-card card">
+        <div class="settings-row">个人资料 <span>›</span></div>
+        <div class="settings-row">训练目标 <span>›</span></div>
+        <button class="settings-row settings-button" type="button" data-screen-target="backup">备份与恢复 <span>›</span></button>
+        <div class="settings-row">关于 FitCheck <span>›</span></div>
+      </section>
+    </section>
+
+    <section class="screen" data-screen="backup" aria-label="备份与恢复">
+      <header class="topbar">
+        <button class="icon-button" type="button" data-screen-target="profile" aria-label="返回我的">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <h1 class="page-title">备份与恢复</h1>
+      <p class="page-subtitle">数据只保存在当前设备。建议定期导出备份文件。</p>
+
+      <section class="backup-card card">
+        <h2>当前本地数据</h2>
+        <p>备份包含训练计划、日期安排和完成记录。</p>
+        <div class="backup-summary">
+          <div><strong id="backup-plan-count">0</strong><span>训练计划</span></div>
+          <div><strong id="backup-schedule-count">0</strong><span>日期安排</span></div>
+          <div><strong id="backup-completion-count">0</strong><span>完成记录</span></div>
+        </div>
+        <div class="action-stack">
+          <button class="primary-button" type="button" data-action="export-backup">导出备份文件</button>
+          <label class="secondary-button file-button">
+            导入备份文件
+            <input id="backup-file-input" type="file" accept="application/json,.json" />
+          </label>
+        </div>
+        <p class="backup-status" id="backup-status" role="status"></p>
+      </section>
+
+      <section class="backup-card card">
+        <h2>安装到手机</h2>
+        <p id="pwa-status">正在检查 PWA 支持状态……</p>
+        <p style="margin-top: 12px;">iPhone：使用 Safari 打开 HTTPS 地址，点击分享，再选择“添加到主屏幕”。Android：使用 Chrome 打开后选择“安装应用”。</p>
+      </section>
+    </section>
+
+    <nav class="bottom-nav" aria-label="主导航">
+      <button class="nav-item active" type="button" data-nav-target="home"><i class="nav-dot"></i>首页</button>
+      <button class="nav-item" type="button" data-nav-target="record"><i class="nav-dot"></i>记录</button>
+      <button class="nav-item" type="button" data-nav-target="profile"><i class="nav-dot"></i>我的</button>
+    </nav>
+  </main>
+
+  <script>
+    const PLAN_STORAGE_KEY = "fitcheck:v1:plans";
+    const SCHEDULE_STORAGE_KEY = "fitcheck:v1:schedules";
+    const COMPLETION_STORAGE_KEY = "fitcheck:v1:completions";
+    const defaultPlans = [
+      {
+        id: "plan-core-awakening",
+        name: "核心唤醒",
+        goal: "增强核心稳定、建立训练习惯",
+        estimatedMinutes: 8,
+        tag: "新手友好",
+        createdAt: "2026-07-10T00:00:00.000Z",
+        updatedAt: "2026-07-10T00:00:00.000Z",
+        exercises: [
+          { id: "ex-plank", name: "平板支撑", sets: 2, mode: "duration", reps: null, durationSeconds: 30, restSeconds: 20, note: "保持身体成一直线" },
+          { id: "ex-dead-bug", name: "死虫式", sets: 2, mode: "reps", reps: 12, durationSeconds: null, restSeconds: 20, note: "下背贴地" },
+          { id: "ex-crunch", name: "卷腹", sets: 3, mode: "reps", reps: 15, durationSeconds: null, restSeconds: 30, note: "避免拉扯颈部" },
+          { id: "ex-climber", name: "登山跑", sets: 2, mode: "duration", reps: null, durationSeconds: 30, restSeconds: 20, note: "保持均匀呼吸" },
+          { id: "ex-bridge", name: "臀桥", sets: 3, mode: "reps", reps: 15, durationSeconds: null, restSeconds: 30, note: "顶峰收紧臀部" },
+          { id: "ex-stretch", name: "站姿拉伸", sets: 1, mode: "duration", reps: null, durationSeconds: 60, restSeconds: 0, note: "缓慢完成" }
+        ]
+      }
+    ];
+
+    const screens = [...document.querySelectorAll(".screen")];
+    const navItems = [...document.querySelectorAll("[data-nav-target]")];
+    const rootScreens = new Set(["home", "record", "profile"]);
+    const bottomNav = document.querySelector(".bottom-nav");
+    const planList = document.querySelector("#plan-list");
+    const planForm = document.querySelector("#plan-form");
+    const exerciseEditorList = document.querySelector("#exercise-editor-list");
+    const formError = document.querySelector("#plan-form-error");
+    const scheduleForm = document.querySelector("#schedule-form");
+    const scheduleFormError = document.querySelector("#schedule-form-error");
+    const backupFileInput = document.querySelector("#backup-file-input");
+    let plans = loadPlans();
+    let schedules = loadCollection(SCHEDULE_STORAGE_KEY);
+    let completions = loadCollection(COMPLETION_STORAGE_KEY);
+    let currentPlanId = plans[0]?.id || null;
+    let currentScheduleId = null;
+    let editingPlanId = null;
+    let trainingSession = null;
+
+    function createId(prefix) {
+      const suffix = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      return `${prefix}-${suffix}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function loadPlans() {
+      const raw = localStorage.getItem(PLAN_STORAGE_KEY);
+      if (!raw) {
+        localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(defaultPlans));
+        return structuredClone(defaultPlans);
+      }
+
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : structuredClone(defaultPlans);
+      } catch {
+        return structuredClone(defaultPlans);
+      }
+    }
+
+    function savePlans() {
+      localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(plans));
+    }
+
+    function loadCollection(key) {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveSchedules() {
+      localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedules));
+    }
+
+    function saveCompletions() {
+      localStorage.setItem(COMPLETION_STORAGE_KEY, JSON.stringify(completions));
+    }
+
+    function dateKey(date = new Date()) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function shiftDate(value, days) {
+      const [year, month, day] = value.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      date.setDate(date.getDate() + days);
+      return dateKey(date);
+    }
+
+    function formatDate(value) {
+      const [, month, day] = value.split("-").map(Number);
+      return `${month}月${day}日`;
+    }
+
+    function getPlan(id = currentPlanId, useFallback = true) {
+      return plans.find((plan) => plan.id === id) || (useFallback ? plans[0] : null) || null;
+    }
+
+    function renderPlans() {
+      if (!plans.length) {
+        planList.innerHTML = `
+          <div class="empty-card card">
+            <h3>还没有训练计划</h3>
+            <p>点击右上角加号，创建你的第一个训练计划。</p>
+          </div>`;
+        return;
+      }
+
+      planList.innerHTML = plans.map((plan) => `
+        <article class="plan-item card">
+          <button class="plan-item-main" type="button" data-action="open-plan" data-plan-id="${escapeHtml(plan.id)}">
+            <span>
+              <h3>${escapeHtml(plan.name)}</h3>
+              <p class="plan-meta">${plan.exercises.length} 个动作 · ${Number(plan.estimatedMinutes) || 0} 分钟</p>
+              ${plan.goal ? `<p class="plan-goal">${escapeHtml(plan.goal)}</p>` : ""}
+            </span>
+            <span class="chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="plan-actions">
+            <button class="text-button" type="button" data-action="schedule-plan" data-plan-id="${escapeHtml(plan.id)}">安排日期</button>
+            <button class="text-button" type="button" data-action="edit-plan" data-plan-id="${escapeHtml(plan.id)}">编辑</button>
+            <button class="text-button danger" type="button" data-action="delete-plan" data-plan-id="${escapeHtml(plan.id)}">删除</button>
+          </div>
+        </article>`).join("");
+    }
+
+    function renderDetail(planId, scheduleId = null) {
+      const plan = getPlan(planId);
+      if (!plan) return false;
+
+      currentPlanId = plan.id;
+      currentScheduleId = scheduleId;
+      document.querySelector("#detail-title").textContent = plan.name;
+      document.querySelector("#detail-subtitle").textContent = `${plan.exercises.length} 个动作 · 预计 ${plan.estimatedMinutes} 分钟`;
+      document.querySelector("#detail-card-title").textContent = `${plan.name}训练`;
+      document.querySelector("#detail-goal").textContent = plan.goal ? `训练目标：${plan.goal}` : "按自己的节奏完成训练";
+      document.querySelector("#detail-tag").textContent = plan.tag || "自定义计划";
+      document.querySelector("#detail-exercises").innerHTML = `
+        <h3>训练内容</h3>
+        ${plan.exercises.map((exercise, index) => {
+          const amount = exercise.mode === "duration"
+            ? `${exercise.sets} 组 × ${exercise.durationSeconds} 秒`
+            : `${exercise.sets} 组 × ${exercise.reps} 次`;
+          const rest = Number(exercise.restSeconds) > 0 ? ` · 休息 ${exercise.restSeconds} 秒` : "";
+          return `<div class="exercise-row"><span class="number-dot">${index + 1}</span><span>${escapeHtml(exercise.name)} · ${amount}${rest}</span></div>`;
+        }).join("")}`;
+      return true;
+    }
+
+    function isScheduleComplete(scheduleId) {
+      return completions.some((completion) => completion.scheduleId === scheduleId);
+    }
+
+    function renderHome() {
+      const today = dateKey();
+      const todaySchedules = schedules.filter((schedule) => schedule.date === today);
+      const list = document.querySelector("#today-plan-list");
+      document.querySelector("#home-streak").textContent = `连续打卡 ${calculateStreak()} 天`;
+
+      if (!todaySchedules.length) {
+        list.innerHTML = `
+          <div class="empty-card card">
+            <h3>今天还没有训练安排</h3>
+            <p>进入训练计划，为今天安排一个计划。</p>
+            <div class="action-stack">
+              <button class="secondary-button" type="button" data-screen-target="plans">去安排训练</button>
+            </div>
+          </div>`;
+        return;
+      }
+
+      list.innerHTML = todaySchedules.map((schedule, index) => {
+        const plan = getPlan(schedule.planId, false);
+        if (!plan) return "";
+        const completed = isScheduleComplete(schedule.id);
+        const accent = index % 3 === 0 ? "var(--primary)" : index % 3 === 1 ? "var(--primary-2)" : "var(--mid)";
+        return `
+          <button class="workout-card ${completed ? "completed" : ""}" type="button" style="--accent: ${accent}" data-action="open-scheduled-plan" data-plan-id="${escapeHtml(plan.id)}" data-schedule-id="${escapeHtml(schedule.id)}">
+            <span class="workout-icon"></span>
+            <h3>${escapeHtml(plan.name)}</h3>
+            <p>${plan.exercises.length} 个动作 · ${plan.estimatedMinutes} 分钟</p>
+            <span class="tag">${completed ? "已完成" : escapeHtml(plan.tag || "今日计划")}</span>
+            <span class="chevron">›</span>
+          </button>`;
+      }).join("");
+    }
+
+    function calculateStreak() {
+      const completedDates = new Set(completions.map((completion) => completion.date));
+      if (!completedDates.size) return 0;
+
+      const today = dateKey();
+      let cursor = completedDates.has(today) ? today : shiftDate(today, -1);
+      let streak = 0;
+      while (completedDates.has(cursor)) {
+        streak += 1;
+        cursor = shiftDate(cursor, -1);
+      }
+      return streak;
+    }
+
+    function renderRecord() {
+      document.querySelector("#record-streak").textContent = `${calculateStreak()} 天`;
+      const list = document.querySelector("#record-list");
+      const sorted = [...completions].sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+
+      if (!sorted.length) {
+        list.innerHTML = `<div class="record-empty">还没有打卡记录，完成一次训练后会显示在这里。</div>`;
+        return;
+      }
+
+      list.innerHTML = sorted.map((completion) => `
+        <div class="record-row">
+          <i class="record-status"></i>
+          <span class="record-name">${escapeHtml(completion.planName)} · ${completion.minutes} 分钟</span>
+          <span class="record-date">${formatDate(completion.date)}</span>
+        </div>`).join("");
+    }
+
+    function renderProfile() {
+      const uniqueDays = new Set(completions.map((completion) => completion.date)).size;
+      const totalMinutes = completions.reduce((sum, completion) => sum + Number(completion.minutes || 0), 0);
+      document.querySelector("#profile-summary").textContent = `已打卡 ${uniqueDays} 天 · 数据保存在本机`;
+      document.querySelector("#stat-days").textContent = `${uniqueDays}天`;
+      document.querySelector("#stat-minutes").textContent = `${totalMinutes}分`;
+      document.querySelector("#stat-completions").textContent = `${completions.length}个`;
+    }
+
+    function renderBackup() {
+      document.querySelector("#backup-plan-count").textContent = plans.length;
+      document.querySelector("#backup-schedule-count").textContent = schedules.length;
+      document.querySelector("#backup-completion-count").textContent = completions.length;
+    }
+
+    function showBackupStatus(message) {
+      const status = document.querySelector("#backup-status");
+      status.textContent = message;
+      status.classList.add("visible");
+    }
+
+    function exportBackup() {
+      const payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        plans,
+        schedules,
+        completions,
+        settings: {}
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `fitcheck-backup-${dateKey()}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      showBackupStatus("备份文件已导出。请把文件保存在安全的位置。");
+    }
+
+    function isValidBackup(data) {
+      if (!data || data.version !== 1) return false;
+      if (!Array.isArray(data.plans) || !Array.isArray(data.schedules) || !Array.isArray(data.completions)) return false;
+      if (!data.plans.every((plan) => plan && typeof plan.id === "string" && typeof plan.name === "string" && Array.isArray(plan.exercises))) return false;
+      if (!data.schedules.every((schedule) => schedule && typeof schedule.id === "string" && typeof schedule.planId === "string" && /^\d{4}-\d{2}-\d{2}$/.test(schedule.date))) return false;
+      if (!data.completions.every((completion) => completion && typeof completion.id === "string" && typeof completion.planId === "string" && /^\d{4}-\d{2}-\d{2}$/.test(completion.date))) return false;
+      return true;
+    }
+
+    async function importBackup(file) {
+      try {
+        const data = JSON.parse(await file.text());
+        if (!isValidBackup(data)) {
+          showBackupStatus("导入失败：文件不是有效的 FitCheck v1 备份。");
+          return;
+        }
+        if (!window.confirm("导入将覆盖当前设备上的全部 FitCheck 数据，确定继续吗？")) return;
+
+        plans = data.plans;
+        schedules = data.schedules;
+        completions = data.completions;
+        savePlans();
+        saveSchedules();
+        saveCompletions();
+        currentPlanId = plans[0]?.id || null;
+        currentScheduleId = null;
+        renderPlans();
+        renderDetail(currentPlanId);
+        renderHome();
+        renderRecord();
+        renderProfile();
+        renderBackup();
+        showBackupStatus(`恢复完成：${plans.length} 个计划、${schedules.length} 个日期安排、${completions.length} 条完成记录。`);
+      } catch {
+        showBackupStatus("导入失败：无法读取或解析这个 JSON 文件。");
+      } finally {
+        backupFileInput.value = "";
+      }
+    }
+
+    async function setupPWA() {
+      const status = document.querySelector("#pwa-status");
+      if (!("serviceWorker" in navigator)) {
+        status.textContent = "当前浏览器不支持 Service Worker，无法启用离线安装。";
+        return;
+      }
+      if (!window.isSecureContext) {
+        status.textContent = "PWA 安装需要 HTTPS 地址；本地开发可通过 localhost 测试。";
+        return;
+      }
+
+      try {
+        await navigator.serviceWorker.register("./service-worker.js");
+        status.textContent = "PWA 离线服务已启用。部署到 HTTPS 后即可添加到手机主屏幕。";
+      } catch {
+        status.textContent = "PWA 离线服务注册失败，请通过本地服务器或 HTTPS 地址打开。";
+      }
+    }
+
+    function buildTrainingSteps(plan) {
+      return plan.exercises.flatMap((exercise, exerciseIndex) => {
+        const totalSets = Math.max(1, Number(exercise.sets) || 1);
+        return Array.from({ length: totalSets }, (_, setIndex) => ({
+          exercise,
+          exerciseIndex,
+          setIndex,
+          totalSets
+        }));
+      });
+    }
+
+    function formatCountdown(milliseconds) {
+      const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+      const minutesPart = Math.floor(seconds / 60);
+      const secondsPart = String(seconds % 60).padStart(2, "0");
+      return `${String(minutesPart).padStart(2, "0")}:${secondsPart}`;
+    }
+
+    function clearTrainingTimer() {
+      if (trainingSession?.timerId) {
+        clearInterval(trainingSession.timerId);
+        trainingSession.timerId = null;
+      }
+    }
+
+    function stopTrainingSession() {
+      clearTrainingTimer();
+      trainingSession = null;
+    }
+
+    function getUpcomingStep() {
+      return trainingSession?.steps[trainingSession.index + 1] || null;
+    }
+
+    function renderUpcomingStep() {
+      const upcoming = getUpcomingStep();
+      const label = document.querySelector("#checkin-next-label");
+      const title = document.querySelector("#checkin-next");
+      const note = document.querySelector("#checkin-next-note");
+
+      if (!upcoming) {
+        label.textContent = "下一步";
+        title.textContent = "完成训练并打卡";
+        note.textContent = "这是本次训练的最后一组";
+        return;
+      }
+
+      label.textContent = upcoming.exerciseIndex === trainingSession.steps[trainingSession.index].exerciseIndex ? "下一组" : "下一个动作";
+      title.textContent = `${upcoming.exercise.name} · 第 ${upcoming.setIndex + 1}/${upcoming.totalSets} 组`;
+      note.textContent = upcoming.exercise.mode === "duration"
+        ? `计时 ${upcoming.exercise.durationSeconds} 秒`
+        : `完成 ${upcoming.exercise.reps} 次`;
+    }
+
+    function updateTimerVisual() {
+      if (!trainingSession) return;
+      const progress = trainingSession.durationMs > 0
+        ? Math.max(0, Math.min(100, trainingSession.remainingMs / trainingSession.durationMs * 100))
+        : 0;
+      document.querySelector("#training-ring").style.setProperty("--progress", `${progress}%`);
+      document.querySelector("#training-display").textContent = formatCountdown(trainingSession.remainingMs);
+    }
+
+    function tickTrainingTimer() {
+      if (!trainingSession || trainingSession.paused || !trainingSession.endAt) return;
+      trainingSession.remainingMs = Math.max(0, trainingSession.endAt - Date.now());
+      updateTimerVisual();
+      if (trainingSession.remainingMs > 0) return;
+
+      const phase = trainingSession.phase;
+      clearTrainingTimer();
+      if (phase === "rest") {
+        finishRestPhase();
+      } else {
+        finishTrainingStep();
+      }
+    }
+
+    function startTrainingTimer(seconds) {
+      clearTrainingTimer();
+      trainingSession.durationMs = Math.max(1, Number(seconds)) * 1000;
+      trainingSession.remainingMs = trainingSession.durationMs;
+      trainingSession.endAt = Date.now() + trainingSession.remainingMs;
+      trainingSession.paused = false;
+      document.querySelector("#training-pause").textContent = "暂停倒计时";
+      document.querySelector("#training-pause").hidden = false;
+      updateTimerVisual();
+      trainingSession.timerId = setInterval(tickTrainingTimer, 100);
+    }
+
+    function renderExercisePhase() {
+      if (!trainingSession) return;
+      clearTrainingTimer();
+      trainingSession.phase = "exercise";
+      const step = trainingSession.steps[trainingSession.index];
+      const exercise = step.exercise;
+      const isFinalStep = trainingSession.index === trainingSession.steps.length - 1;
+      const ring = document.querySelector("#training-ring");
+      const primary = document.querySelector("#training-primary");
+      const pause = document.querySelector("#training-pause");
+
+      document.querySelector("#checkin-title").textContent = getPlan(trainingSession.planId)?.name || "训练中";
+      document.querySelector("#training-phase").textContent = `动作 ${step.exerciseIndex + 1}/${getPlan(trainingSession.planId).exercises.length} · 第 ${step.setIndex + 1}/${step.totalSets} 组`;
+      document.querySelector("#checkin-current").textContent = exercise.name;
+      document.querySelector("#checkin-current-note").textContent = exercise.note || "保持稳定节奏，按计划完成本组";
+      ring.classList.remove("rest-mode", "reps-mode");
+      renderUpcomingStep();
+
+      if (exercise.mode === "duration") {
+        primary.textContent = isFinalStep ? "提前完成并打卡" : "提前完成本组";
+        startTrainingTimer(exercise.durationSeconds);
+      } else {
+        ring.classList.add("reps-mode");
+        ring.style.setProperty("--progress", "100%");
+        document.querySelector("#training-display").textContent = `${exercise.reps} 次`;
+        pause.hidden = true;
+        primary.textContent = isFinalStep ? "完成训练并打卡" : "完成本组";
+        trainingSession.durationMs = 0;
+        trainingSession.remainingMs = 0;
+        trainingSession.endAt = null;
+        trainingSession.paused = false;
+      }
+    }
+
+    function startRestPhase(seconds) {
+      if (!trainingSession) return;
+      trainingSession.phase = "rest";
+      const current = trainingSession.steps[trainingSession.index];
+      const upcoming = getUpcomingStep();
+      const ring = document.querySelector("#training-ring");
+      ring.classList.remove("reps-mode");
+      ring.classList.add("rest-mode");
+      document.querySelector("#training-phase").textContent = "组间休息";
+      document.querySelector("#checkin-current").textContent = "休息";
+      document.querySelector("#checkin-current-note").textContent = `${current.exercise.name}已完成，准备下一组`;
+      document.querySelector("#checkin-next-label").textContent = upcoming?.exerciseIndex === current.exerciseIndex ? "休息后继续" : "休息后进入";
+      document.querySelector("#checkin-next").textContent = upcoming
+        ? `${upcoming.exercise.name} · 第 ${upcoming.setIndex + 1}/${upcoming.totalSets} 组`
+        : "完成训练";
+      document.querySelector("#checkin-next-note").textContent = upcoming?.exercise.mode === "duration"
+        ? `计时 ${upcoming.exercise.durationSeconds} 秒`
+        : `完成 ${upcoming?.exercise.reps || 0} 次`;
+      document.querySelector("#training-primary").textContent = "跳过休息";
+      startTrainingTimer(seconds);
+    }
+
+    function startTrainingSession() {
+      const plan = getPlan();
+      if (!plan || !plan.exercises.length) return false;
+      stopTrainingSession();
+      trainingSession = {
+        planId: plan.id,
+        scheduleId: currentScheduleId,
+        steps: buildTrainingSteps(plan),
+        index: 0,
+        phase: "exercise",
+        durationMs: 0,
+        remainingMs: 0,
+        endAt: null,
+        paused: false,
+        timerId: null
+      };
+      setScreen("checkin");
+      renderExercisePhase();
+      return true;
+    }
+
+    function finishTrainingStep() {
+      if (!trainingSession) return;
+      if (trainingSession.phase === "rest") {
+        finishRestPhase();
+        return;
+      }
+
+      clearTrainingTimer();
+      const isFinalStep = trainingSession.index === trainingSession.steps.length - 1;
+      if (isFinalStep) {
+        completeCurrentPlan();
+        return;
+      }
+
+      const step = trainingSession.steps[trainingSession.index];
+      const restSeconds = Number(step.exercise.restSeconds) || 0;
+      if (restSeconds > 0) {
+        startRestPhase(restSeconds);
+      } else {
+        trainingSession.index += 1;
+        renderExercisePhase();
+      }
+    }
+
+    function finishRestPhase() {
+      if (!trainingSession) return;
+      clearTrainingTimer();
+      trainingSession.index += 1;
+      renderExercisePhase();
+    }
+
+    function toggleTrainingPause() {
+      if (!trainingSession || !trainingSession.durationMs) return;
+      const button = document.querySelector("#training-pause");
+      if (trainingSession.paused) {
+        trainingSession.paused = false;
+        trainingSession.endAt = Date.now() + trainingSession.remainingMs;
+        button.textContent = "暂停倒计时";
+        trainingSession.timerId = setInterval(tickTrainingTimer, 100);
+        tickTrainingTimer();
+      } else {
+        trainingSession.remainingMs = Math.max(0, trainingSession.endAt - Date.now());
+        trainingSession.paused = true;
+        trainingSession.endAt = null;
+        clearTrainingTimer();
+        updateTimerVisual();
+        button.textContent = "继续倒计时";
+      }
+    }
+
+    function emptyExercise() {
+      return {
+        id: createId("exercise"),
+        name: "",
+        sets: 3,
+        mode: "reps",
+        reps: 12,
+        durationSeconds: null,
+        restSeconds: 30,
+        note: ""
+      };
+    }
+
+    function exerciseEditorTemplate(exercise, index) {
+      const value = exercise.mode === "duration" ? exercise.durationSeconds : exercise.reps;
+      return `
+        <section class="exercise-editor" data-exercise-id="${escapeHtml(exercise.id || createId("exercise"))}">
+          <div class="exercise-editor-header">
+            <strong>动作 ${index + 1}</strong>
+            <button class="remove-exercise" type="button" data-action="remove-exercise">删除动作</button>
+          </div>
+          <div class="field">
+            <label>动作名称</label>
+            <input data-field="name" type="text" maxlength="40" value="${escapeHtml(exercise.name)}" placeholder="例如：哑铃卧推" required />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>组数</label>
+              <input data-field="sets" type="number" min="1" max="99" value="${Number(exercise.sets) || 1}" required />
+            </div>
+            <div class="field">
+              <label>计量方式</label>
+              <select data-field="mode">
+                <option value="reps" ${exercise.mode !== "duration" ? "selected" : ""}>次数</option>
+                <option value="duration" ${exercise.mode === "duration" ? "selected" : ""}>时长</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label data-value-label>${exercise.mode === "duration" ? "每组秒数" : "每组次数"}</label>
+              <input data-field="value" type="number" min="1" max="9999" value="${Number(value) || 1}" required />
+            </div>
+            <div class="field">
+              <label>休息秒数</label>
+              <input data-field="restSeconds" type="number" min="0" max="3600" value="${Number(exercise.restSeconds) || 0}" required />
+            </div>
+          </div>
+          <div class="field">
+            <label>动作备注</label>
+            <input data-field="note" type="text" maxlength="100" value="${escapeHtml(exercise.note)}" placeholder="可选" />
+          </div>
+        </section>`;
+    }
+
+    function renderExerciseEditors(exercises) {
+      exerciseEditorList.innerHTML = exercises.map(exerciseEditorTemplate).join("");
+      updateExerciseNumbers();
+    }
+
+    function updateExerciseNumbers() {
+      [...exerciseEditorList.querySelectorAll(".exercise-editor")].forEach((editor, index) => {
+        editor.querySelector(".exercise-editor-header strong").textContent = `动作 ${index + 1}`;
+      });
+    }
+
+    function openEditor(planId = null) {
+      const plan = planId ? getPlan(planId) : null;
+      editingPlanId = plan?.id || null;
+      document.querySelector("#editor-title").textContent = plan ? "编辑训练计划" : "添加训练计划";
+      planForm.elements.name.value = plan?.name || "";
+      planForm.elements.estimatedMinutes.value = plan?.estimatedMinutes || 30;
+      planForm.elements.tag.value = plan?.tag || "";
+      planForm.elements.goal.value = plan?.goal || "";
+      formError.textContent = "";
+      formError.classList.remove("visible");
+      renderExerciseEditors(plan?.exercises?.length ? plan.exercises : [emptyExercise()]);
+      setScreen("plan-editor");
+    }
+
+    function openScheduleEditor(planId = null) {
+      if (!plans.length) return;
+      const select = scheduleForm.elements.planId;
+      select.innerHTML = plans.map((plan) => `
+        <option value="${escapeHtml(plan.id)}" ${plan.id === planId ? "selected" : ""}>${escapeHtml(plan.name)}</option>`).join("");
+      scheduleForm.elements.date.value = dateKey();
+      scheduleFormError.textContent = "";
+      scheduleFormError.classList.remove("visible");
+      setScreen("schedule-editor");
+    }
+
+    function collectExercises() {
+      return [...exerciseEditorList.querySelectorAll(".exercise-editor")].map((editor) => {
+        const mode = editor.querySelector('[data-field="mode"]').value;
+        const value = Number(editor.querySelector('[data-field="value"]').value);
+        return {
+          id: editor.dataset.exerciseId || createId("exercise"),
+          name: editor.querySelector('[data-field="name"]').value.trim(),
+          sets: Number(editor.querySelector('[data-field="sets"]').value),
+          mode,
+          reps: mode === "reps" ? value : null,
+          durationSeconds: mode === "duration" ? value : null,
+          restSeconds: Number(editor.querySelector('[data-field="restSeconds"]').value),
+          note: editor.querySelector('[data-field="note"]').value.trim()
+        };
+      });
+    }
+
+    function showFormError(message) {
+      formError.textContent = message;
+      formError.classList.add("visible");
+      formError.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+
+    function showScheduleError(message) {
+      scheduleFormError.textContent = message;
+      scheduleFormError.classList.add("visible");
+    }
+
+    function completeCurrentPlan() {
+      const plan = getPlan();
+      if (!plan) return;
+      clearTrainingTimer();
+      const today = dateKey();
+      const duplicate = currentScheduleId
+        ? completions.some((completion) => completion.scheduleId === currentScheduleId)
+        : completions.some((completion) => completion.planId === plan.id && completion.date === today && !completion.scheduleId);
+
+      if (!duplicate) {
+        completions.unshift({
+          id: createId("completion"),
+          planId: plan.id,
+          scheduleId: currentScheduleId,
+          planName: plan.name,
+          date: today,
+          completedAt: new Date().toISOString(),
+          minutes: Number(plan.estimatedMinutes) || 0
+        });
+        saveCompletions();
+      }
+
+      const streak = calculateStreak();
+      document.querySelector("#success-message").textContent = duplicate
+        ? `${plan.name}今天已经记录过打卡。`
+        : `${plan.name}已完成，当前连续打卡 ${streak} 天。`;
+      renderHome();
+      renderRecord();
+      renderProfile();
+      trainingSession = null;
+      setScreen("success");
+    }
+
+    function setScreen(name) {
+      screens.forEach((screen) => {
+        screen.classList.toggle("active", screen.dataset.screen === name);
+      });
+
+      navItems.forEach((item) => {
+        item.classList.toggle("active", item.dataset.navTarget === name);
+      });
+
+      bottomNav.classList.toggle("hidden", !rootScreens.has(name));
+      if (name === "plans") renderPlans();
+      if (name === "home") renderHome();
+      if (name === "record") renderRecord();
+      if (name === "profile") renderProfile();
+      if (name === "backup") renderBackup();
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+
+    document.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-action], [data-screen-target], [data-nav-target]");
+      if (!target) return;
+
+      const action = target.dataset.action;
+      const planId = target.dataset.planId;
+
+      if (action === "new-plan") {
+        openEditor();
+        return;
+      }
+
+      if (action === "add-exercise") {
+        exerciseEditorList.insertAdjacentHTML("beforeend", exerciseEditorTemplate(emptyExercise(), exerciseEditorList.children.length));
+        updateExerciseNumbers();
+        return;
+      }
+
+      if (action === "remove-exercise") {
+        if (exerciseEditorList.children.length === 1) {
+          showFormError("一个训练计划至少需要保留一个动作。");
+          return;
+        }
+        target.closest(".exercise-editor").remove();
+        updateExerciseNumbers();
+        return;
+      }
+
+      if (action === "open-plan") {
+        if (renderDetail(planId)) setScreen("detail");
+        return;
+      }
+
+      if (action === "open-scheduled-plan") {
+        if (renderDetail(planId, target.dataset.scheduleId)) setScreen("detail");
+        return;
+      }
+
+      if (action === "schedule-plan") {
+        openScheduleEditor(planId);
+        return;
+      }
+
+      if (action === "edit-plan") {
+        openEditor(planId);
+        return;
+      }
+
+      if (action === "edit-current-plan") {
+        openEditor(currentPlanId);
+        return;
+      }
+
+      if (action === "start-current-plan") {
+        startTrainingSession();
+        return;
+      }
+
+      if (action === "finish-training-step") {
+        finishTrainingStep();
+        return;
+      }
+
+      if (action === "toggle-training-pause") {
+        toggleTrainingPause();
+        return;
+      }
+
+      if (action === "export-backup") {
+        exportBackup();
+        return;
+      }
+
+      if (action === "exit-training") {
+        stopTrainingSession();
+        setScreen("home");
+        return;
+      }
+
+      if (action === "exit-training-to-detail") {
+        stopTrainingSession();
+        renderDetail(currentPlanId, currentScheduleId);
+        setScreen("detail");
+        return;
+      }
+
+      if (action === "delete-plan") {
+        const plan = getPlan(planId);
+        if (!plan || !window.confirm(`确定删除“${plan.name}”吗？`)) return;
+        plans = plans.filter((item) => item.id !== planId);
+        schedules = schedules.filter((schedule) => schedule.planId !== planId);
+        savePlans();
+        saveSchedules();
+        if (currentPlanId === planId) currentPlanId = plans[0]?.id || null;
+        renderPlans();
+        renderHome();
+        return;
+      }
+
+      const next = target.dataset.screenTarget || target.dataset.navTarget;
+      if (next === "detail") renderDetail(currentPlanId, currentScheduleId);
+      setScreen(next);
+    });
+
+    exerciseEditorList.addEventListener("change", (event) => {
+      if (event.target.dataset.field !== "mode") return;
+      const editor = event.target.closest(".exercise-editor");
+      editor.querySelector("[data-value-label]").textContent = event.target.value === "duration" ? "每组秒数" : "每组次数";
+    });
+
+    planForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = planForm.elements.name.value.trim();
+      const estimatedMinutes = Number(planForm.elements.estimatedMinutes.value);
+      const exercises = collectExercises();
+
+      if (!name) return showFormError("请填写训练计划名称。");
+      if (!Number.isFinite(estimatedMinutes) || estimatedMinutes < 1 || estimatedMinutes > 600) {
+        return showFormError("预计分钟数需要在 1 到 600 之间。");
+      }
+      if (!exercises.length || exercises.some((exercise) => !exercise.name)) {
+        return showFormError("请填写每个动作的名称。");
+      }
+      if (exercises.some((exercise) => !Number.isInteger(exercise.sets) || exercise.sets < 1 || exercise.sets > 99)) {
+        return showFormError("动作组数需要在 1 到 99 之间。");
+      }
+      if (exercises.some((exercise) => {
+        const value = exercise.mode === "duration" ? exercise.durationSeconds : exercise.reps;
+        return !Number.isFinite(value) || value < 1 || value > 9999;
+      })) {
+        return showFormError("每组次数或秒数需要在 1 到 9999 之间。");
+      }
+      if (exercises.some((exercise) => !Number.isFinite(exercise.restSeconds) || exercise.restSeconds < 0 || exercise.restSeconds > 3600)) {
+        return showFormError("休息秒数需要在 0 到 3600 之间。");
+      }
+
+      const now = new Date().toISOString();
+      const existing = getPlan(editingPlanId, false);
+      const savedPlan = {
+        id: existing?.id || createId("plan"),
+        name,
+        goal: planForm.elements.goal.value.trim(),
+        estimatedMinutes,
+        tag: planForm.elements.tag.value.trim(),
+        exercises,
+        createdAt: existing?.createdAt || now,
+        updatedAt: now
+      };
+
+      if (existing) {
+        plans = plans.map((plan) => plan.id === existing.id ? savedPlan : plan);
+      } else {
+        plans = [savedPlan, ...plans];
+      }
+
+      savePlans();
+      currentPlanId = savedPlan.id;
+      renderPlans();
+      setScreen("plans");
+    });
+
+    scheduleForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const planId = scheduleForm.elements.planId.value;
+      const date = scheduleForm.elements.date.value;
+      if (!getPlan(planId, false)) return showScheduleError("请选择一个有效的训练计划。");
+      if (!date) return showScheduleError("请选择训练日期。");
+      if (schedules.some((schedule) => schedule.planId === planId && schedule.date === date)) {
+        return showScheduleError("这个计划已经安排在所选日期，无需重复添加。");
+      }
+
+      schedules.push({
+        id: createId("schedule"),
+        planId,
+        date,
+        createdAt: new Date().toISOString()
+      });
+      saveSchedules();
+      renderPlans();
+      renderHome();
+      setScreen(date === dateKey() ? "home" : "plans");
+    });
+
+    backupFileInput.addEventListener("change", () => {
+      const [file] = backupFileInput.files;
+      if (file) importBackup(file);
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const current = screens.find((screen) => screen.classList.contains("active"))?.dataset.screen;
+      if (current === "checkin") stopTrainingSession();
+      if (current && !rootScreens.has(current)) setScreen("home");
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && trainingSession?.timerId) tickTrainingTimer();
+    });
+
+    renderPlans();
+    renderDetail(currentPlanId);
+    renderHome();
+    renderRecord();
+    renderProfile();
+    renderBackup();
+    setupPWA();
+  </script>
+</body>
+</html>
