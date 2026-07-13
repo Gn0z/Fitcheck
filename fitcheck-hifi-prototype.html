@@ -34,7 +34,10 @@
     html,
     body {
       margin: 0;
-      min-height: 100%;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
       background: var(--bg);
       color: var(--ink);
     }
@@ -57,25 +60,61 @@
 
     .app-shell {
       width: min(100vw, 430px);
-      min-height: 100vh;
-      min-height: 100dvh;
+      height: 100vh;
+      height: 100dvh;
       background:
         radial-gradient(circle at 88% 2%, rgba(17, 24, 39, .08), transparent 150px),
         var(--bg);
       position: relative;
-      overflow-x: hidden;
+      overflow: hidden;
       box-shadow: 0 0 0 1px rgba(17, 24, 39, .05);
     }
 
     .screen {
       display: none;
-      min-height: 100vh;
-      min-height: 100dvh;
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
       padding: calc(22px + env(safe-area-inset-top)) 24px calc(96px + env(safe-area-inset-bottom));
+      scrollbar-gutter: stable;
     }
 
     .screen.active {
       display: block;
+    }
+
+    .screen[data-screen="checkin"],
+    .screen[data-screen="success"] {
+      overflow: hidden;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    }
+
+    .screen:not([data-screen="home"]):not([data-screen="record"]):not([data-screen="profile"]):not([data-screen="success"]) {
+      padding-top: 0;
+    }
+
+    .screen:not([data-screen="home"]):not([data-screen="record"]):not([data-screen="profile"]):not([data-screen="success"]) .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 12;
+      min-height: calc(66px + env(safe-area-inset-top));
+      margin: 0 -24px;
+      padding: calc(12px + env(safe-area-inset-top)) 24px 10px;
+      background: rgba(243, 244, 246, .94);
+      backdrop-filter: blur(18px);
+    }
+
+    .screen:not([data-screen="home"]):not([data-screen="record"]):not([data-screen="profile"]):not([data-screen="success"]) > .page-title {
+      position: sticky;
+      top: calc(66px + env(safe-area-inset-top));
+      z-index: 11;
+      margin: 0 -24px;
+      padding: 12px 24px 8px;
+      background: rgba(243, 244, 246, .94);
+      backdrop-filter: blur(18px);
     }
 
     .topbar {
@@ -1181,14 +1220,11 @@
       }
 
       .app-shell {
-        min-height: calc(100vh - 56px);
+        height: calc(100vh - 56px);
         border-radius: 38px;
         overflow: hidden;
       }
 
-      .screen {
-        min-height: calc(100vh - 56px);
-      }
     }
   </style>
 </head>
@@ -1544,6 +1580,11 @@
     let currentScheduleId = null;
     let editingPlanId = null;
     let trainingSession = null;
+    let activeScreen = "home";
+    let editorSnapshot = "";
+    let restoringHistory = false;
+    let edgeGesture = null;
+    let skipNextLeaveGuard = false;
 
     function createId(prefix) {
       const suffix = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -2149,6 +2190,7 @@
       formError.textContent = "";
       formError.classList.remove("visible");
       renderExerciseEditors(plan?.exercises?.length ? plan.exercises : [emptyExercise()]);
+      editorSnapshot = getEditorSnapshot();
       setScreen("plan-editor");
     }
 
@@ -2161,6 +2203,7 @@
       updateScheduleDateDisplay();
       scheduleFormError.textContent = "";
       scheduleFormError.classList.remove("visible");
+      editorSnapshot = getScheduleSnapshot();
       setScreen("schedule-editor");
     }
 
@@ -2179,6 +2222,71 @@
           note: editor.querySelector('[data-field="note"]').value.trim()
         };
       });
+    }
+
+    function getEditorSnapshot() {
+      return JSON.stringify({
+        name: planForm.elements.name.value,
+        estimatedMinutes: planForm.elements.estimatedMinutes.value,
+        tag: planForm.elements.tag.value,
+        goal: planForm.elements.goal.value,
+        exercises: collectExercises()
+      });
+    }
+
+    function getScheduleSnapshot() {
+      return JSON.stringify({
+        planId: scheduleForm.elements.planId.value,
+        date: scheduleForm.elements.date.value
+      });
+    }
+
+    function hasUnsavedChanges() {
+      if (activeScreen === "plan-editor") return getEditorSnapshot() !== editorSnapshot;
+      if (activeScreen === "schedule-editor") return getScheduleSnapshot() !== editorSnapshot;
+      return false;
+    }
+
+    function canLeaveCurrentScreen() {
+      if (hasUnsavedChanges()) return window.confirm("当前修改尚未保存，确定离开吗？");
+      if (activeScreen === "checkin" && trainingSession) {
+        return window.confirm("训练仍在进行，确定退出并丢失当前进度吗？");
+      }
+      return true;
+    }
+
+    function routeState(name) {
+      return { fitcheck: true, screen: name, planId: currentPlanId, scheduleId: currentScheduleId, editingPlanId };
+    }
+
+    function restoreRoute(state) {
+      if (!state?.fitcheck) {
+        setScreen("home", { historyMode: "replace" });
+        return;
+      }
+      restoringHistory = true;
+      if (state.screen === "detail") renderDetail(state.planId, state.scheduleId);
+      if (state.screen === "plan-editor") {
+        openEditor(state.editingPlanId);
+        restoringHistory = false;
+        return;
+      }
+      if (state.screen === "schedule-editor") {
+        openScheduleEditor(state.planId);
+        restoringHistory = false;
+        return;
+      }
+      currentPlanId = state.planId || currentPlanId;
+      currentScheduleId = state.scheduleId || null;
+      setScreen(state.screen, { historyMode: "none" });
+      restoringHistory = false;
+    }
+
+    function navigateBack() {
+      if (!canLeaveCurrentScreen()) return;
+      if (activeScreen === "checkin") stopTrainingSession();
+      skipNextLeaveGuard = true;
+      history.back();
     }
 
     function showFormError(message) {
@@ -2225,7 +2333,8 @@
       setScreen("success");
     }
 
-    function setScreen(name) {
+    function setScreen(name, { historyMode = "push" } = {}) {
+      if (!screens.some((screen) => screen.dataset.screen === name)) name = "home";
       screens.forEach((screen) => {
         screen.classList.toggle("active", screen.dataset.screen === name);
       });
@@ -2240,7 +2349,12 @@
       if (name === "record") renderRecord();
       if (name === "profile") renderProfile();
       if (name === "backup") renderBackup();
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      activeScreen = name;
+      document.querySelector(`.screen[data-screen="${name}"]`)?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      if (!restoringHistory && historyMode !== "none") {
+        const method = historyMode === "replace" ? "replaceState" : "pushState";
+        history[method](routeState(name), "", `#${name}`);
+      }
     }
 
     document.addEventListener("click", (event) => {
@@ -2249,6 +2363,11 @@
 
       const action = target.dataset.action;
       const planId = target.dataset.planId;
+
+      if (target.matches(".topbar [data-screen-target], .editor-actions [data-screen-target]")) {
+        navigateBack();
+        return;
+      }
 
       if (action === "new-plan") {
         openEditor();
@@ -2317,15 +2436,12 @@
       }
 
       if (action === "exit-training") {
-        stopTrainingSession();
-        setScreen("home");
+        navigateBack();
         return;
       }
 
       if (action === "exit-training-to-detail") {
-        stopTrainingSession();
-        renderDetail(currentPlanId, currentScheduleId);
-        setScreen("detail");
+        navigateBack();
         return;
       }
 
@@ -2400,8 +2516,10 @@
 
       savePlans();
       currentPlanId = savedPlan.id;
+      editorSnapshot = getEditorSnapshot();
       renderPlans();
-      setScreen("plans");
+      skipNextLeaveGuard = true;
+      history.back();
     });
 
     scheduleForm.addEventListener("submit", (event) => {
@@ -2421,9 +2539,15 @@
         createdAt: new Date().toISOString()
       });
       saveSchedules();
+      editorSnapshot = getScheduleSnapshot();
       renderPlans();
       renderHome();
-      setScreen(date === dateKey() ? "home" : "plans");
+      if (date === dateKey()) {
+        setScreen("home", { historyMode: "replace" });
+      } else {
+        skipNextLeaveGuard = true;
+        history.back();
+      }
     });
 
     scheduleDateInput.addEventListener("input", updateScheduleDateDisplay);
@@ -2436,10 +2560,37 @@
 
     window.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
-      const current = screens.find((screen) => screen.classList.contains("active"))?.dataset.screen;
-      if (current === "checkin") stopTrainingSession();
-      if (current && !rootScreens.has(current)) setScreen("home");
+      if (!rootScreens.has(activeScreen)) navigateBack();
     });
+
+    window.addEventListener("popstate", (event) => {
+      if (skipNextLeaveGuard) {
+        skipNextLeaveGuard = false;
+      } else if (!canLeaveCurrentScreen()) {
+        skipNextLeaveGuard = true;
+        history.go(1);
+        return;
+      }
+      if (activeScreen === "checkin") stopTrainingSession();
+      restoreRoute(event.state);
+    });
+
+    document.addEventListener("touchstart", (event) => {
+      if (event.touches.length !== 1 || event.touches[0].clientX > 24 || rootScreens.has(activeScreen)) return;
+      edgeGesture = { x: event.touches[0].clientX, y: event.touches[0].clientY, time: performance.now() };
+    }, { passive: true });
+
+    document.addEventListener("touchend", (event) => {
+      if (!edgeGesture || !event.changedTouches.length) return;
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - edgeGesture.x;
+      const dy = Math.abs(touch.clientY - edgeGesture.y);
+      const elapsed = performance.now() - edgeGesture.time;
+      edgeGesture = null;
+      if (dx >= 72 && dy <= 56 && dx > dy * 1.35 && elapsed <= 650) navigateBack();
+    }, { passive: true });
+
+    document.addEventListener("touchcancel", () => { edgeGesture = null; }, { passive: true });
 
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && trainingSession?.timerId) tickTrainingTimer();
@@ -2451,6 +2602,11 @@
     renderRecord();
     renderProfile();
     renderBackup();
+    if (history.state?.fitcheck) {
+      restoreRoute(history.state);
+    } else {
+      history.replaceState(routeState("home"), "", "#home");
+    }
     setupPWA();
   </script>
 </body>
