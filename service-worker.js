@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitcheck-shell-v4";
+const CACHE_NAME = "fitcheck-shell-v11";
 const APP_SHELL = [
   "./fitcheck-hifi-prototype.html",
   "./manifest.webmanifest",

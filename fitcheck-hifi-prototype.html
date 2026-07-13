@@ -86,6 +86,13 @@
       display: block;
     }
 
+    .screen[data-screen="home"],
+    .screen[data-screen="record"],
+    .screen[data-screen="profile"] {
+      touch-action: pan-y;
+      overscroll-behavior-x: none;
+    }
+
     .screen[data-screen="checkin"],
     .screen[data-screen="success"] {
       overflow: hidden;
@@ -567,7 +574,7 @@
 
     .metric-card {
       margin-top: 24px;
-      min-height: 138px;
+      min-height: 250px;
       padding: 26px 24px;
       position: relative;
     }
@@ -579,27 +586,28 @@
       line-height: 48px;
     }
 
-    .bars {
-      position: absolute;
-      right: 34px;
-      bottom: 36px;
-      height: 76px;
-      display: flex;
-      align-items: end;
-      gap: 10px;
+    .training-heatmap {
+      width: 100%;
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(14, minmax(0, 1fr));
+      grid-template-rows: repeat(7, minmax(0, 1fr));
+      grid-auto-flow: column;
+      gap: 5px;
     }
 
-    .bars i {
-      width: 18px;
-      border-radius: 999px;
-      background: var(--pale);
+    .heatmap-cell {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 6px;
+      background: #f1f3f5;
     }
 
-    .bars i:nth-child(1) { height: 52px; background: var(--primary); }
-    .bars i:nth-child(2) { height: 66px; background: var(--primary-2); }
-    .bars i:nth-child(3) { height: 32px; background: var(--mid); }
-    .bars i:nth-child(4) { height: 46px; }
-    .bars i:nth-child(5) { height: 22px; }
+    .heatmap-cell.level-1 { background: #b6bdc7; }
+    .heatmap-cell.level-2 { background: #7d8794; }
+    .heatmap-cell.level-3 { background: #4b5563; }
+    .heatmap-cell.level-4 { background: #111827; }
+    .heatmap-cell.future { opacity: .42; }
 
     .list-card {
       overflow: hidden;
@@ -1070,6 +1078,29 @@
       line-height: 19px;
     }
 
+    .selected-date-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .selected-date-list:empty {
+      display: none;
+    }
+
+    .selected-date-chip {
+      min-height: 36px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 12px;
+      color: var(--primary);
+      background: var(--pale);
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
     .date-picker-control {
       position: relative;
       width: 100%;
@@ -1328,7 +1359,7 @@
       </header>
 
       <h1 class="page-title">安排训练</h1>
-      <p class="page-subtitle">选择一个训练计划，并安排到具体日期。</p>
+      <p class="page-subtitle">选择一个训练计划，并一次安排到多个日期。</p>
 
       <form id="schedule-form" novalidate>
         <section class="form-card card">
@@ -1337,7 +1368,7 @@
             <select id="schedule-plan" name="planId" required></select>
           </div>
           <div class="field">
-            <label for="schedule-date">训练日期</label>
+            <label for="schedule-date">添加训练日期</label>
             <div class="date-picker-control">
               <span class="date-picker-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
@@ -1349,10 +1380,11 @@
                 <span id="schedule-date-secondary">点击打开日期选择器</span>
               </span>
               <span class="date-picker-chevron" aria-hidden="true">›</span>
-              <input id="schedule-date" name="date" type="date" aria-label="训练日期" required />
+              <input id="schedule-date" name="date" type="date" aria-label="训练日期" />
             </div>
+            <div class="selected-date-list" id="selected-date-list" aria-label="已选训练日期"></div>
           </div>
-          <p class="schedule-note">同一天可以安排多个计划；完成任意一个计划，当天只计算一次连续打卡。</p>
+          <p class="schedule-note">每次选择会加入日期列表，可添加多个非连续日期。重复训练会分别记录，但同一天只计算一次打卡天数。</p>
         </section>
         <p class="form-error" id="schedule-form-error" role="alert"></p>
         <div class="editor-actions">
@@ -1454,7 +1486,7 @@
       <section class="metric-card card">
         <p class="eyebrow">连续打卡</p>
         <h2 id="record-streak">0 天</h2>
-        <div class="bars"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="training-heatmap" id="training-heatmap" role="img" aria-label="最近十四周训练热力图"></div>
       </section>
 
       <h2 class="section-title">打卡记录</h2>
@@ -1480,7 +1512,7 @@
       <section class="stats">
         <div class="stat"><strong id="stat-days">0天</strong><span>累计打卡</span></div>
         <div class="stat"><strong id="stat-minutes">0分</strong><span>累计训练</span></div>
-        <div class="stat"><strong id="stat-completions">0个</strong><span>完成课程</span></div>
+        <div class="stat"><strong id="stat-completions">0个</strong><span>完成训练</span></div>
       </section>
 
       <section class="settings-card card">
@@ -1572,6 +1604,7 @@
     const scheduleDateInput = document.querySelector("#schedule-date");
     const scheduleDatePrimary = document.querySelector("#schedule-date-primary");
     const scheduleDateSecondary = document.querySelector("#schedule-date-secondary");
+    const selectedDateList = document.querySelector("#selected-date-list");
     const backupFileInput = document.querySelector("#backup-file-input");
     let plans = loadPlans();
     let schedules = loadCollection(SCHEDULE_STORAGE_KEY);
@@ -1587,6 +1620,8 @@
     let skipNextLeaveGuard = false;
     let restoringRootGuard = false;
     let ignoreNextPopstate = false;
+    let rootTouchStart = null;
+    let selectedScheduleDates = new Set();
 
     function createId(prefix) {
       const suffix = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -1659,8 +1694,10 @@
 
     function updateScheduleDateDisplay() {
       if (!scheduleDateInput.value) {
-        scheduleDatePrimary.textContent = "选择日期";
-        scheduleDateSecondary.textContent = "点击打开日期选择器";
+        scheduleDatePrimary.textContent = selectedScheduleDates.size ? "继续添加日期" : "选择日期";
+        scheduleDateSecondary.textContent = selectedScheduleDates.size
+          ? `已选择 ${selectedScheduleDates.size} 天`
+          : "点击打开日期选择器";
         return;
       }
 
@@ -1669,6 +1706,26 @@
       const date = new Date(year, month - 1, day);
       scheduleDatePrimary.textContent = `${month}月${day}日`;
       scheduleDateSecondary.textContent = `${year}年 · ${weekday[date.getDay()]}`;
+    }
+
+    function renderSelectedScheduleDates() {
+      selectedDateList.innerHTML = [...selectedScheduleDates]
+        .sort()
+        .map((date) => `
+          <button class="selected-date-chip" type="button" data-action="remove-schedule-date" data-date="${date}" aria-label="移除 ${formatDate(date)}">
+            ${formatDate(date)} ×
+          </button>`)
+        .join("");
+      updateScheduleDateDisplay();
+    }
+
+    function addSelectedScheduleDate() {
+      if (!scheduleDateInput.value) return;
+      selectedScheduleDates.add(scheduleDateInput.value);
+      scheduleDateInput.value = "";
+      renderSelectedScheduleDates();
+      scheduleFormError.textContent = "";
+      scheduleFormError.classList.remove("visible");
     }
 
     function getPlan(id = currentPlanId, useFallback = true) {
@@ -1726,8 +1783,8 @@
       return true;
     }
 
-    function isScheduleComplete(scheduleId) {
-      return completions.some((completion) => completion.scheduleId === scheduleId);
+    function getScheduleCompletionCount(scheduleId) {
+      return completions.filter((completion) => completion.scheduleId === scheduleId).length;
     }
 
     function renderHome() {
@@ -1751,14 +1808,15 @@
       list.innerHTML = todaySchedules.map((schedule, index) => {
         const plan = getPlan(schedule.planId, false);
         if (!plan) return "";
-        const completed = isScheduleComplete(schedule.id);
+        const completionCount = getScheduleCompletionCount(schedule.id);
+        const completed = completionCount > 0;
         const accent = index % 3 === 0 ? "var(--primary)" : index % 3 === 1 ? "var(--primary-2)" : "var(--mid)";
         return `
           <button class="workout-card ${completed ? "completed" : ""}" type="button" style="--accent: ${accent}" data-action="open-scheduled-plan" data-plan-id="${escapeHtml(plan.id)}" data-schedule-id="${escapeHtml(schedule.id)}">
             <span class="workout-icon"></span>
             <h3>${escapeHtml(plan.name)}</h3>
             <p>${plan.exercises.length} 个动作 · ${plan.estimatedMinutes} 分钟</p>
-            <span class="tag">${completed ? "已完成" : escapeHtml(plan.tag || "今日计划")}</span>
+            <span class="tag">${completed ? `已完成 ${completionCount} 次` : escapeHtml(plan.tag || "今日计划")}</span>
             <span class="chevron">›</span>
           </button>`;
       }).join("");
@@ -1778,8 +1836,36 @@
       return streak;
     }
 
+    function getHeatmapLevel(minutes) {
+      if (minutes <= 0) return 0;
+      if (minutes <= 8) return 1;
+      if (minutes <= 16) return 2;
+      if (minutes <= 24) return 3;
+      return 4;
+    }
+
+    function renderTrainingHeatmap() {
+      const heatmap = document.querySelector("#training-heatmap");
+      const today = dateKey();
+      const [year, month, day] = today.split("-").map(Number);
+      const daysFromMonday = (new Date(year, month - 1, day).getDay() + 6) % 7;
+      const startDate = shiftDate(today, -(13 * 7 + daysFromMonday));
+      const minutesByDate = completions.reduce((result, completion) => {
+        result[completion.date] = (result[completion.date] || 0) + Number(completion.minutes || 0);
+        return result;
+      }, {});
+
+      heatmap.innerHTML = Array.from({ length: 14 * 7 }, (_, index) => {
+        const date = shiftDate(startDate, index);
+        const isFuture = date > today;
+        const level = isFuture ? 0 : getHeatmapLevel(minutesByDate[date] || 0);
+        return `<i class="heatmap-cell level-${level}${isFuture ? " future" : ""}" aria-hidden="true"></i>`;
+      }).join("");
+    }
+
     function renderRecord() {
       document.querySelector("#record-streak").textContent = `${calculateStreak()} 天`;
+      renderTrainingHeatmap();
       const list = document.querySelector("#record-list");
       const sorted = [...completions].sort((a, b) => b.completedAt.localeCompare(a.completedAt));
 
@@ -1918,7 +2004,7 @@
 
     function clearTrainingTimer() {
       if (trainingSession?.timerId) {
-        clearInterval(trainingSession.timerId);
+        cancelAnimationFrame(trainingSession.timerId);
         trainingSession.timerId = null;
       }
     }
@@ -1962,10 +2048,14 @@
     }
 
     function tickTrainingTimer() {
+      if (trainingSession) trainingSession.timerId = null;
       if (!trainingSession || trainingSession.paused || !trainingSession.endAt) return;
       trainingSession.remainingMs = Math.max(0, trainingSession.endAt - Date.now());
       updateTimerVisual();
-      if (trainingSession.remainingMs > 0) return;
+      if (trainingSession.remainingMs > 0) {
+        trainingSession.timerId = requestAnimationFrame(tickTrainingTimer);
+        return;
+      }
 
       const phase = trainingSession.phase;
       clearTrainingTimer();
@@ -1985,7 +2075,7 @@
       document.querySelector("#training-pause").textContent = "暂停倒计时";
       document.querySelector("#training-pause").hidden = false;
       updateTimerVisual();
-      trainingSession.timerId = setInterval(tickTrainingTimer, 100);
+      trainingSession.timerId = requestAnimationFrame(tickTrainingTimer);
     }
 
     function renderExercisePhase() {
@@ -2103,7 +2193,6 @@
         trainingSession.paused = false;
         trainingSession.endAt = Date.now() + trainingSession.remainingMs;
         button.textContent = "暂停倒计时";
-        trainingSession.timerId = setInterval(tickTrainingTimer, 100);
         tickTrainingTimer();
       } else {
         trainingSession.remainingMs = Math.max(0, trainingSession.endAt - Date.now());
@@ -2201,8 +2290,9 @@
       const select = scheduleForm.elements.planId;
       select.innerHTML = plans.map((plan) => `
         <option value="${escapeHtml(plan.id)}" ${plan.id === planId ? "selected" : ""}>${escapeHtml(plan.name)}</option>`).join("");
-      scheduleForm.elements.date.value = dateKey();
-      updateScheduleDateDisplay();
+      selectedScheduleDates = new Set([dateKey()]);
+      scheduleForm.elements.date.value = "";
+      renderSelectedScheduleDates();
       scheduleFormError.textContent = "";
       scheduleFormError.classList.remove("visible");
       editorSnapshot = getScheduleSnapshot();
@@ -2239,7 +2329,7 @@
     function getScheduleSnapshot() {
       return JSON.stringify({
         planId: scheduleForm.elements.planId.value,
-        date: scheduleForm.elements.date.value
+        dates: [...selectedScheduleDates].sort()
       });
     }
 
@@ -2307,27 +2397,20 @@
       if (!plan) return;
       clearTrainingTimer();
       const today = dateKey();
-      const duplicate = currentScheduleId
-        ? completions.some((completion) => completion.scheduleId === currentScheduleId)
-        : completions.some((completion) => completion.planId === plan.id && completion.date === today && !completion.scheduleId);
-
-      if (!duplicate) {
-        completions.unshift({
-          id: createId("completion"),
-          planId: plan.id,
-          scheduleId: currentScheduleId,
-          planName: plan.name,
-          date: today,
-          completedAt: new Date().toISOString(),
-          minutes: Number(plan.estimatedMinutes) || 0
-        });
-        saveCompletions();
-      }
+      completions.unshift({
+        id: createId("completion"),
+        planId: plan.id,
+        scheduleId: currentScheduleId,
+        planName: plan.name,
+        date: today,
+        completedAt: new Date().toISOString(),
+        minutes: Number(plan.estimatedMinutes) || 0
+      });
+      saveCompletions();
 
       const streak = calculateStreak();
-      document.querySelector("#success-message").textContent = duplicate
-        ? `${plan.name}今天已经记录过打卡。`
-        : `${plan.name}已完成，当前连续打卡 ${streak} 天。`;
+      const todayCount = completions.filter((completion) => completion.planId === plan.id && completion.date === today).length;
+      document.querySelector("#success-message").textContent = `${plan.name}已完成${todayCount > 1 ? `，今天第 ${todayCount} 次` : ""}，当前连续打卡 ${streak} 天。`;
       renderHome();
       renderRecord();
       renderProfile();
@@ -2367,7 +2450,7 @@
       const action = target.dataset.action;
       const planId = target.dataset.planId;
 
-      if (target.matches(".topbar [data-screen-target], .editor-actions [data-screen-target]")) {
+      if (!rootScreens.has(activeScreen) && target.matches(".topbar [data-screen-target], .editor-actions [data-screen-target]")) {
         navigateBack();
         return;
       }
@@ -2380,6 +2463,12 @@
       if (action === "add-exercise") {
         exerciseEditorList.insertAdjacentHTML("beforeend", exerciseEditorTemplate(emptyExercise(), exerciseEditorList.children.length));
         updateExerciseNumbers();
+        return;
+      }
+
+      if (action === "remove-schedule-date") {
+        selectedScheduleDates.delete(target.dataset.date);
+        renderSelectedScheduleDates();
         return;
       }
 
@@ -2528,24 +2617,28 @@
     scheduleForm.addEventListener("submit", (event) => {
       event.preventDefault();
       const planId = scheduleForm.elements.planId.value;
-      const date = scheduleForm.elements.date.value;
+      const dates = [...selectedScheduleDates].sort();
       if (!getPlan(planId, false)) return showScheduleError("请选择一个有效的训练计划。");
-      if (!date) return showScheduleError("请选择训练日期。");
-      if (schedules.some((schedule) => schedule.planId === planId && schedule.date === date)) {
-        return showScheduleError("这个计划已经安排在所选日期，无需重复添加。");
-      }
-
-      schedules.push({
+      if (!dates.length) return showScheduleError("请至少选择一个训练日期。");
+      const existingDates = new Set(
+        schedules
+          .filter((schedule) => schedule.planId === planId)
+          .map((schedule) => schedule.date)
+      );
+      const newDates = dates.filter((date) => !existingDates.has(date));
+      if (!newDates.length) return showScheduleError("这个计划已安排在全部所选日期，无需重复添加。");
+      const createdAt = new Date().toISOString();
+      schedules.push(...newDates.map((date) => ({
         id: createId("schedule"),
         planId,
         date,
-        createdAt: new Date().toISOString()
-      });
+        createdAt
+      })));
       saveSchedules();
       editorSnapshot = getScheduleSnapshot();
       renderPlans();
       renderHome();
-      if (date === dateKey()) {
+      if (newDates.includes(dateKey())) {
         setScreen("home", { historyMode: "replace" });
       } else {
         skipNextLeaveGuard = true;
@@ -2554,7 +2647,7 @@
     });
 
     scheduleDateInput.addEventListener("input", updateScheduleDateDisplay);
-    scheduleDateInput.addEventListener("change", updateScheduleDateDisplay);
+    scheduleDateInput.addEventListener("change", addSelectedScheduleDate);
 
     backupFileInput.addEventListener("change", () => {
       const [file] = backupFileInput.files;
@@ -2592,9 +2685,21 @@
     });
 
     document.addEventListener("touchstart", (event) => {
-      if (event.touches.length !== 1 || event.touches[0].clientX > 24 || rootScreens.has(activeScreen)) return;
+      if (event.touches.length !== 1) return;
+      if (rootScreens.has(activeScreen)) {
+        rootTouchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+        return;
+      }
+      if (event.touches[0].clientX > 24) return;
       edgeGesture = { x: event.touches[0].clientX, y: event.touches[0].clientY, time: performance.now() };
     }, { passive: true });
+
+    document.addEventListener("touchmove", (event) => {
+      if (!rootTouchStart || !rootScreens.has(activeScreen) || event.touches.length !== 1) return;
+      const dx = Math.abs(event.touches[0].clientX - rootTouchStart.x);
+      const dy = Math.abs(event.touches[0].clientY - rootTouchStart.y);
+      if (dx > 8 && dx > dy) event.preventDefault();
+    }, { passive: false });
 
     document.addEventListener("touchend", (event) => {
       if (!edgeGesture || !event.changedTouches.length) return;
@@ -2606,10 +2711,17 @@
       if (dx >= 72 && dy <= 56 && dx > dy * 1.35 && elapsed <= 650) navigateBack();
     }, { passive: true });
 
-    document.addEventListener("touchcancel", () => { edgeGesture = null; }, { passive: true });
+    document.addEventListener("touchcancel", () => {
+      edgeGesture = null;
+      rootTouchStart = null;
+    }, { passive: true });
+
+    document.addEventListener("touchend", () => { rootTouchStart = null; }, { passive: true });
 
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && trainingSession?.timerId) tickTrainingTimer();
+      if (document.hidden || !trainingSession || trainingSession.paused || !trainingSession.endAt) return;
+      clearTrainingTimer();
+      tickTrainingTimer();
     });
 
     renderPlans();
