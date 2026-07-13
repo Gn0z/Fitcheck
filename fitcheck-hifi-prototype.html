@@ -1585,6 +1585,8 @@
     let restoringHistory = false;
     let edgeGesture = null;
     let skipNextLeaveGuard = false;
+    let restoringRootGuard = false;
+    let ignoreNextPopstate = false;
 
     function createId(prefix) {
       const suffix = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -2333,7 +2335,7 @@
       setScreen("success");
     }
 
-    function setScreen(name, { historyMode = "push" } = {}) {
+    function setScreen(name, { historyMode = "auto" } = {}) {
       if (!screens.some((screen) => screen.dataset.screen === name)) name = "home";
       screens.forEach((screen) => {
         screen.classList.toggle("active", screen.dataset.screen === name);
@@ -2352,7 +2354,8 @@
       activeScreen = name;
       document.querySelector(`.screen[data-screen="${name}"]`)?.scrollTo({ top: 0, left: 0, behavior: "auto" });
       if (!restoringHistory && historyMode !== "none") {
-        const method = historyMode === "replace" ? "replaceState" : "pushState";
+        const shouldReplace = historyMode === "replace" || (historyMode === "auto" && rootScreens.has(name));
+        const method = shouldReplace ? "replaceState" : "pushState";
         history[method](routeState(name), "", `#${name}`);
       }
     }
@@ -2564,10 +2567,23 @@
     });
 
     window.addEventListener("popstate", (event) => {
+      if (ignoreNextPopstate) {
+        ignoreNextPopstate = false;
+        return;
+      }
+      if (restoringRootGuard) {
+        restoringRootGuard = false;
+        return;
+      }
+      if (rootScreens.has(activeScreen)) {
+        restoringRootGuard = true;
+        history.forward();
+        return;
+      }
       if (skipNextLeaveGuard) {
         skipNextLeaveGuard = false;
       } else if (!canLeaveCurrentScreen()) {
-        skipNextLeaveGuard = true;
+        ignoreNextPopstate = true;
         history.go(1);
         return;
       }
@@ -2602,11 +2618,10 @@
     renderRecord();
     renderProfile();
     renderBackup();
-    if (history.state?.fitcheck) {
-      restoreRoute(history.state);
-    } else {
-      history.replaceState(routeState("home"), "", "#home");
-    }
+    const initialRoute = history.state?.fitcheck ? history.state : routeState("home");
+    history.replaceState({ fitcheckGuard: true }, "", location.href);
+    history.pushState(initialRoute, "", `#${initialRoute.screen}`);
+    restoreRoute(initialRoute);
     setupPWA();
   </script>
 </body>
