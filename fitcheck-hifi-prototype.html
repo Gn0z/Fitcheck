@@ -11,13 +11,29 @@
   <link rel="icon" href="./app-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <title>FitCheck</title>
-  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/styles.css?v=28" />
 </head>
 <body>
-  <main class="app-shell" aria-live="polite">
+  <main class="app-shell" aria-live="polite" aria-busy="true">
+    <div class="app-splash" id="app-splash" role="status" aria-label="FitCheck 正在加载">
+      <div class="app-splash-content">
+        <img class="app-splash-icon" src="./app-icon.svg" alt="" aria-hidden="true" />
+        <strong>FitCheck</strong>
+        <span>让每一次训练都有迹可循</span>
+      </div>
+    </div>
+
+    <aside class="data-recovery-banner" id="data-recovery-banner" role="alert" hidden>
+      <div>
+        <strong>本地数据需要恢复</strong>
+        <p id="data-recovery-message"></p>
+      </div>
+      <button type="button" data-screen-target="backup">前往恢复</button>
+    </aside>
+
     <section class="screen active" data-screen="home" aria-label="首页">
       <header class="topbar">
-        <div class="brand">FitCheck <span class="brand-dot"></span></div>
+        <div class="brand">FitCheck</div>
         <button class="icon-button" type="button" data-screen-target="plans" aria-label="查看计划">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
@@ -29,7 +45,7 @@
 
       <div class="hero-card">
         <strong id="home-streak">连续打卡 0 天</strong>
-        <span>今天完成后将解锁第 4 天徽章</span>
+        <span id="home-badge-hint">再连续训练 3 天解锁下一项成就</span>
       </div>
 
       <h2 class="section-title">训练任务</h2>
@@ -121,6 +137,13 @@
             <label for="schedule-plan">训练计划</label>
             <select id="schedule-plan" name="planId" required></select>
           </div>
+          <section class="existing-schedule-panel" aria-labelledby="existing-schedule-title">
+            <div class="schedule-panel-heading">
+              <strong id="existing-schedule-title">已安排日期</strong>
+              <span>点击日期可删除</span>
+            </div>
+            <div class="scheduled-date-list" id="existing-schedule-date-list" aria-live="polite"></div>
+          </section>
           <div class="field">
             <label for="schedule-date">添加训练日期</label>
             <div class="date-picker-control">
@@ -167,6 +190,13 @@
           <span class="tag" id="detail-tag">新手友好</span>
           <div class="pose" aria-hidden="true"></div>
         </div>
+        <section class="detail-schedule-panel" aria-labelledby="detail-schedule-title">
+          <div class="schedule-panel-heading">
+            <strong id="detail-schedule-title">已安排日期</strong>
+            <span>训练日程</span>
+          </div>
+          <div class="scheduled-date-list" id="detail-schedule-date-list" aria-live="polite"></div>
+        </section>
         <div class="exercise-list" id="detail-exercises">
           <h3>训练内容</h3>
         </div>
@@ -212,7 +242,7 @@
 
     <section class="screen" data-screen="success" aria-label="打卡成功">
       <header class="topbar">
-        <div class="brand">FitCheck <span class="brand-dot"></span></div>
+        <div class="brand">FitCheck</div>
       </header>
 
       <section class="success-card card">
@@ -231,7 +261,7 @@
 
     <section class="screen" data-screen="record" aria-label="记录">
       <header class="topbar">
-        <div class="brand">FitCheck <span class="brand-dot"></span></div>
+        <div class="brand">FitCheck</div>
       </header>
 
       <h1 class="page-title">训练记录</h1>
@@ -249,7 +279,7 @@
 
     <section class="screen" data-screen="profile" aria-label="我的">
       <header class="topbar">
-        <div class="brand">FitCheck <span class="brand-dot"></span></div>
+        <div class="brand">FitCheck</div>
       </header>
 
       <h1 class="page-title">我的</h1>
@@ -257,23 +287,39 @@
 
       <section class="profile-card card">
         <div class="avatar"></div>
-        <div>
-          <h2>健身新手</h2>
-          <p id="profile-summary">已打卡 0 天 · 数据保存在本机</p>
-        </div>
+        <button class="profile-identity-button" id="profile-nickname-button" type="button" data-action="edit-nickname" aria-label="修改昵称，当前昵称为训练者">
+          <span class="profile-name-line">
+            <strong id="profile-nickname">训练者</strong>
+            <span class="profile-edit-hint">编辑</span>
+          </span>
+          <span class="profile-summary" id="profile-summary">已打卡 0 天</span>
+        </button>
       </section>
 
       <section class="stats">
         <div class="stat"><strong id="stat-days">0天</strong><span>累计打卡</span></div>
-        <div class="stat"><strong id="stat-minutes">0分</strong><span>累计训练</span></div>
+        <div class="stat"><strong id="stat-minutes">0</strong><span>累计分钟</span></div>
         <div class="stat"><strong id="stat-completions">0个</strong><span>完成训练</span></div>
       </section>
 
+      <section class="badge-collection card" aria-labelledby="badge-collection-title">
+        <header class="badge-collection-header">
+          <div>
+            <p class="eyebrow">训练成就</p>
+            <h2 id="badge-collection-title">我的成就</h2>
+          </div>
+          <strong id="badge-unlock-count">0 / 14</strong>
+        </header>
+        <div class="badge-collection-grid" id="badge-collection-grid"></div>
+        <button class="badge-collection-toggle" id="badge-collection-toggle" type="button" data-action="toggle-badge-collection" aria-expanded="false" aria-controls="badge-collection-grid">
+          <span class="badge-collection-toggle-label">展开全部成就</span>
+          <span class="badge-collection-toggle-icon" aria-hidden="true">⌄</span>
+        </button>
+      </section>
+
       <section class="settings-card card">
-        <div class="settings-row">个人资料 <span>›</span></div>
-        <div class="settings-row">训练目标 <span>›</span></div>
         <button class="settings-row settings-button" type="button" data-screen-target="backup">备份与恢复 <span>›</span></button>
-        <div class="settings-row">关于 FitCheck <span>›</span></div>
+        <button class="settings-row settings-button" type="button" data-screen-target="about">关于 FitCheck <span>›</span></button>
       </section>
     </section>
 
@@ -291,11 +337,12 @@
 
       <section class="backup-card card">
         <h2>当前本地数据</h2>
-        <p>备份包含训练计划、日期安排和完成记录。</p>
+        <p>备份包含昵称、训练计划、日期安排、完成记录和成就解锁记录。</p>
         <div class="backup-summary">
           <div><strong id="backup-plan-count">0</strong><span>训练计划</span></div>
           <div><strong id="backup-schedule-count">0</strong><span>日期安排</span></div>
           <div><strong id="backup-completion-count">0</strong><span>完成记录</span></div>
+          <div><strong id="backup-badge-count">0</strong><span>已解锁成就</span></div>
         </div>
         <div class="action-stack">
           <button class="primary-button" type="button" data-action="export-backup">导出备份文件</button>
@@ -314,6 +361,51 @@
       </section>
     </section>
 
+    <section class="screen" data-screen="about" aria-label="关于 FitCheck">
+      <header class="topbar">
+        <button class="icon-button" type="button" data-screen-target="profile" aria-label="返回我的">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <h1 class="page-title">关于 FitCheck</h1>
+      <p class="page-subtitle">记录训练，也记录每一次坚持。</p>
+
+      <section class="about-hero card">
+        <img src="./app-icon.svg" alt="" aria-hidden="true" />
+        <div>
+          <h2>FitCheck</h2>
+          <p>个人训练计划与打卡记录工具</p>
+        </div>
+        <span class="version-pill">版本 1.4.0</span>
+      </section>
+
+      <section class="about-updates card" aria-labelledby="about-updates-title">
+        <p class="eyebrow">1.4.0 本次更新</p>
+        <h2 id="about-updates-title">成就更轻盈，数据更可靠</h2>
+        <ul>
+          <li>
+            <strong>二维训练成就</strong>
+            <span>14 项训练成就改用统一的二维图形与进阶配色，解锁条件和历史记录保持不变。</span>
+          </li>
+          <li>
+            <strong>排期可以删除</strong>
+            <span>已安排的训练日期现在可以直接移除，既有训练完成记录不会受到影响。</span>
+          </li>
+          <li>
+            <strong>备份恢复更安全</strong>
+            <span>导入前会完整校验备份，写入失败时保留原有数据，并兼容旧版 v1 备份。</span>
+          </li>
+          <li>
+            <strong>训练返回更稳定</strong>
+            <span>训练完成后返回详情页，刷新和前进后退不会再进入失效的训练页面。</span>
+          </li>
+        </ul>
+      </section>
+    </section>
+
     <nav class="bottom-nav" aria-label="主导航">
       <button class="nav-item active" type="button" data-nav-target="home"><i class="nav-dot"></i>首页</button>
       <button class="nav-item" type="button" data-nav-target="record"><i class="nav-dot"></i>记录</button>
@@ -321,6 +413,51 @@
     </nav>
   </main>
 
-  <script type="module" src="./js/app.js"></script>
+  <dialog class="badge-dialog" id="badge-unlock-dialog" aria-labelledby="badge-dialog-heading" aria-describedby="badge-dialog-condition badge-dialog-status">
+    <div class="badge-dialog-panel">
+      <div class="badge-dialog-kicker">
+        <span>解锁新成就</span>
+        <span id="badge-dialog-progress">新成就</span>
+      </div>
+      <div class="badge-dialog-showcase" id="badge-dialog-coin"></div>
+      <h2 id="badge-dialog-heading">获得新成就</h2>
+      <h3 id="badge-dialog-title"></h3>
+      <p id="badge-dialog-condition"></p>
+      <p class="badge-detail-status is-unlocked" id="badge-dialog-status"></p>
+      <button class="primary-button" id="badge-dialog-next" type="button" data-action="advance-badge-dialog">收下成就</button>
+    </div>
+  </dialog>
+
+  <dialog class="badge-dialog badge-detail-dialog" id="badge-detail-dialog" aria-labelledby="badge-detail-title" aria-describedby="badge-detail-condition badge-detail-status">
+    <div class="badge-dialog-panel">
+      <div class="badge-dialog-kicker">
+        <span>成就详情</span>
+        <span id="badge-detail-tier"></span>
+      </div>
+      <div class="badge-dialog-showcase" id="badge-detail-coin"></div>
+      <h2 id="badge-detail-heading">训练成就</h2>
+      <h3 id="badge-detail-title"></h3>
+      <p id="badge-detail-condition"></p>
+      <p class="badge-detail-status" id="badge-detail-status"></p>
+      <button class="secondary-button" type="button" data-action="close-badge-detail">关闭</button>
+    </div>
+  </dialog>
+
+  <dialog class="nickname-dialog" id="nickname-dialog" aria-labelledby="nickname-dialog-title" aria-describedby="nickname-dialog-description">
+    <form class="nickname-dialog-panel" id="nickname-form" novalidate>
+      <p class="eyebrow">个人昵称</p>
+      <h2 id="nickname-dialog-title">修改昵称</h2>
+      <p id="nickname-dialog-description">昵称最多输入 12 个字符，并只保存在你的设备和备份文件中。</p>
+      <label for="nickname-input">昵称</label>
+      <input id="nickname-input" name="nickname" type="text" maxlength="12" autocomplete="nickname" required />
+      <p class="form-error nickname-error" id="nickname-error" role="alert"></p>
+      <div class="nickname-dialog-actions">
+        <button class="secondary-button" type="button" data-action="close-nickname-editor">取消</button>
+        <button class="primary-button" type="submit">保存昵称</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./js/app.js?v=28"></script>
 </body>
 </html>

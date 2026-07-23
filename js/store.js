@@ -1,6 +1,12 @@
+import { DataValidationError, normalizeState } from "./data-validation.js?v=28";
+
+const STATE_STORAGE_KEY = "fitcheck:v1:state";
 const PLAN_STORAGE_KEY = "fitcheck:v1:plans";
 const SCHEDULE_STORAGE_KEY = "fitcheck:v1:schedules";
 const COMPLETION_STORAGE_KEY = "fitcheck:v1:completions";
+const BADGE_UNLOCK_STORAGE_KEY = "fitcheck:v1:badge-unlocks";
+const PROFILE_STORAGE_KEY = "fitcheck:v1:profile";
+const DEFAULT_PROFILE = Object.freeze({ nickname: "训练者" });
 
 const defaultPlans = [
   {
@@ -22,100 +28,185 @@ const defaultPlans = [
   }
 ];
 
-function loadPlans() {
-  const raw = localStorage.getItem(PLAN_STORAGE_KEY);
-  if (!raw) {
-    localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(defaultPlans));
-    return structuredClone(defaultPlans);
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : structuredClone(defaultPlans);
-  } catch {
-    return structuredClone(defaultPlans);
-  }
-}
-
-function loadCollection(key) {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 function clone(value) {
   return structuredClone(value);
 }
 
-let plans = loadPlans();
-let schedules = loadCollection(SCHEDULE_STORAGE_KEY);
-let completions = loadCollection(COMPLETION_STORAGE_KEY);
+function defaultState() {
+  return {
+    plans: clone(defaultPlans),
+    schedules: [],
+    completions: [],
+    badgeUnlocks: [],
+    profile: { ...DEFAULT_PROFILE }
+  };
+}
 
-function persist() {
-  localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(plans));
-  localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedules));
-  localStorage.setItem(COMPLETION_STORAGE_KEY, JSON.stringify(completions));
+function parseStoredJson(key, fallback) {
+  const raw = localStorage.getItem(key);
+  return raw === null ? fallback : JSON.parse(raw);
+}
+
+function loadInitialState() {
+  const combinedRaw = localStorage.getItem(STATE_STORAGE_KEY);
+  if (combinedRaw !== null) {
+    try {
+      return { state: normalizeState(JSON.parse(combinedRaw)), issue: null };
+    } catch (error) {
+      return {
+        state: defaultState(),
+        issue: {
+          code: error instanceof DataValidationError ? error.code : "invalid_json",
+          message: "检测到本地数据异常，FitCheck 已使用安全数据启动。请从有效备份恢复。"
+        }
+      };
+    }
+  }
+
+  try {
+    const hasLegacyData = [
+      PLAN_STORAGE_KEY,
+      SCHEDULE_STORAGE_KEY,
+      COMPLETION_STORAGE_KEY,
+      BADGE_UNLOCK_STORAGE_KEY,
+      PROFILE_STORAGE_KEY
+    ].some((key) => localStorage.getItem(key) !== null);
+    const candidate = hasLegacyData
+      ? {
+          plans: parseStoredJson(PLAN_STORAGE_KEY, clone(defaultPlans)),
+          schedules: parseStoredJson(SCHEDULE_STORAGE_KEY, []),
+          completions: parseStoredJson(COMPLETION_STORAGE_KEY, []),
+          badgeUnlocks: parseStoredJson(BADGE_UNLOCK_STORAGE_KEY, []),
+          profile: parseStoredJson(PROFILE_STORAGE_KEY, { ...DEFAULT_PROFILE })
+        }
+      : defaultState();
+    const state = normalizeState(candidate);
+    try {
+      localStorage.setItem(STATE_STORAGE_KEY, JSON.stringify(state));
+      return { state, issue: null };
+    } catch {
+      return {
+        state,
+        issue: {
+          code: "storage_write_failed",
+          message: "本地数据可以读取，但暂时无法保存。请导出备份并检查浏览器存储空间。"
+        }
+      };
+    }
+  } catch (error) {
+    return {
+      state: defaultState(),
+      issue: {
+        code: error instanceof DataValidationError ? error.code : "invalid_json",
+        message: "检测到旧版本地数据异常，FitCheck 已使用安全数据启动。请从有效备份恢复。"
+      }
+    };
+  }
+}
+
+let { state, issue: loadIssue } = loadInitialState();
+
+function commit(candidate) {
+  const normalized = normalizeState(candidate);
+  const serialized = JSON.stringify(normalized);
+  localStorage.setItem(STATE_STORAGE_KEY, serialized);
+  state = normalized;
+  loadIssue = null;
+}
+
+function updateState(changes) {
+  commit({ ...state, ...changes });
 }
 
 export const store = Object.freeze({
   getPlans() {
-    return clone(plans);
+    return clone(state.plans);
   },
 
   getSchedules() {
-    return clone(schedules);
+    return clone(state.schedules);
   },
 
   getCompletions() {
-    return clone(completions);
+    return clone(state.completions);
+  },
+
+  getBadgeUnlocks() {
+    return clone(state.badgeUnlocks);
+  },
+
+  getProfile() {
+    return clone(state.profile);
+  },
+
+  getLoadIssue() {
+    return loadIssue ? { ...loadIssue } : null;
+  },
+
+  updateNickname(nickname) {
+    updateState({ profile: { nickname } });
   },
 
   findPlan(id, useFallback = true) {
-    const plan = plans.find((item) => item.id === id) || (useFallback ? plans[0] : null) || null;
+    const plan = state.plans.find((item) => item.id === id) || (useFallback ? state.plans[0] : null) || null;
     return plan ? clone(plan) : null;
   },
 
   savePlan(plan) {
     const nextPlan = clone(plan);
-    const exists = plans.some((item) => item.id === nextPlan.id);
-    plans = exists
-      ? plans.map((item) => item.id === nextPlan.id ? nextPlan : item)
-      : [nextPlan, ...plans];
-    localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(plans));
+    const exists = state.plans.some((item) => item.id === nextPlan.id);
+    const plans = exists
+      ? state.plans.map((item) => item.id === nextPlan.id ? nextPlan : item)
+      : [nextPlan, ...state.plans];
+    updateState({ plans });
   },
 
   deletePlan(planId) {
-    plans = plans.filter((item) => item.id !== planId);
-    schedules = schedules.filter((schedule) => schedule.planId !== planId);
-    localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(plans));
-    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedules));
+    updateState({
+      plans: state.plans.filter((item) => item.id !== planId),
+      schedules: state.schedules.filter((schedule) => schedule.planId !== planId)
+    });
   },
 
   addSchedules(items) {
-    schedules = [...schedules, ...clone(items)];
-    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedules));
+    updateState({ schedules: [...state.schedules, ...clone(items)] });
+  },
+
+  deleteSchedule(scheduleId) {
+    const schedules = state.schedules.filter((schedule) => schedule.id !== scheduleId);
+    if (schedules.length === state.schedules.length) return false;
+    updateState({ schedules });
+    return true;
   },
 
   addCompletion(completion) {
-    completions = [clone(completion), ...completions];
-    localStorage.setItem(COMPLETION_STORAGE_KEY, JSON.stringify(completions));
+    updateState({ completions: [clone(completion), ...state.completions] });
+  },
+
+  addBadgeUnlocks(items) {
+    const existingIds = new Set(state.badgeUnlocks.map((unlock) => unlock.badgeId));
+    const newUnlocks = clone(items).filter((unlock) => {
+      if (existingIds.has(unlock.badgeId)) return false;
+      existingIds.add(unlock.badgeId);
+      return true;
+    });
+    if (!newUnlocks.length) return;
+    updateState({ badgeUnlocks: [...state.badgeUnlocks, ...newUnlocks] });
   },
 
   restore(data) {
-    plans = clone(data.plans);
-    schedules = clone(data.schedules);
-    completions = clone(data.completions);
-    persist();
+    const profileField = Object.hasOwn(data, "profile") ? "profile" : "settings";
+    const normalized = normalizeState(data, { profileField });
+    commit(normalized);
   },
 
   snapshot() {
     return {
-      plans: clone(plans),
-      schedules: clone(schedules),
-      completions: clone(completions)
+      plans: clone(state.plans),
+      schedules: clone(state.schedules),
+      completions: clone(state.completions),
+      badgeUnlocks: clone(state.badgeUnlocks),
+      settings: clone(state.profile)
     };
   }
 });

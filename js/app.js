@@ -1,8 +1,14 @@
-import { calculateStreak as calculateCompletionStreak, renderProfile as renderProfileView, renderRecord as renderRecordView } from "./records.js";
-import { store } from "./store.js";
-import { createTrainingController } from "./training.js";
-import { createId, dateKey, escapeHtml, formatDate } from "./utils.js";
+import { calculateStreak as calculateCompletionStreak, renderProfile as renderProfileView, renderRecord as renderRecordView } from "./records.js?v=28";
+import { achievementMarkMarkup, evaluateNewBadgeUnlocks, formatBadgeUnlockDate, getBadgeById, getNextStreakBadgeHint, renderBadgeCollection } from "./badges.js?v=28";
+import { BACKUP_MAX_BYTES, DataValidationError, normalizeBackup } from "./data-validation.js?v=28";
+import { store } from "./store.js?v=28";
+import { createTrainingController } from "./training.js?v=28";
+import { createId, dateKey, escapeHtml, formatDate } from "./utils.js?v=28";
 
+const appShell = document.querySelector(".app-shell");
+const appSplash = document.querySelector("#app-splash");
+const dataRecoveryBanner = document.querySelector("#data-recovery-banner");
+const dataRecoveryMessage = document.querySelector("#data-recovery-message");
 const screens = [...document.querySelectorAll(".screen")];
 const navItems = [...document.querySelectorAll("[data-nav-target]")];
 const rootScreens = new Set(["home", "record", "profile"]);
@@ -17,7 +23,28 @@ const scheduleDateInput = document.querySelector("#schedule-date");
 const scheduleDatePrimary = document.querySelector("#schedule-date-primary");
 const scheduleDateSecondary = document.querySelector("#schedule-date-secondary");
 const selectedDateList = document.querySelector("#selected-date-list");
+const existingScheduleDateList = document.querySelector("#existing-schedule-date-list");
+const detailScheduleDateList = document.querySelector("#detail-schedule-date-list");
 const backupFileInput = document.querySelector("#backup-file-input");
+const badgeUnlockDialog = document.querySelector("#badge-unlock-dialog");
+const badgeDialogCoin = document.querySelector("#badge-dialog-coin");
+const badgeDialogTitle = document.querySelector("#badge-dialog-title");
+const badgeDialogCondition = document.querySelector("#badge-dialog-condition");
+const badgeDialogStatus = document.querySelector("#badge-dialog-status");
+const badgeDialogProgress = document.querySelector("#badge-dialog-progress");
+const badgeDialogNext = document.querySelector("#badge-dialog-next");
+const badgeCollection = document.querySelector(".badge-collection");
+const badgeCollectionToggle = document.querySelector("#badge-collection-toggle");
+const badgeDetailDialog = document.querySelector("#badge-detail-dialog");
+const badgeDetailCoin = document.querySelector("#badge-detail-coin");
+const badgeDetailTier = document.querySelector("#badge-detail-tier");
+const badgeDetailTitle = document.querySelector("#badge-detail-title");
+const badgeDetailCondition = document.querySelector("#badge-detail-condition");
+const badgeDetailStatus = document.querySelector("#badge-detail-status");
+const nicknameDialog = document.querySelector("#nickname-dialog");
+const nicknameForm = document.querySelector("#nickname-form");
+const nicknameInput = document.querySelector("#nickname-input");
+const nicknameError = document.querySelector("#nickname-error");
 let currentPlanId = store.getPlans()[0]?.id || null;
 let currentScheduleId = null;
 let editingPlanId = null;
@@ -30,6 +57,8 @@ let restoringRootGuard = false;
 let ignoreNextPopstate = false;
 let rootTouchStart = null;
 let selectedScheduleDates = new Set();
+let pendingBadgeUnlocks = [];
+let activeBadgeUnlockIndex = 0;
 
 const training = createTrainingController({
   getPlan,
@@ -37,6 +66,18 @@ const training = createTrainingController({
   setScreen,
   onComplete: completeCurrentPlan
 });
+
+function dismissAppSplash() {
+  appShell.setAttribute("aria-busy", "false");
+  requestAnimationFrame(() => appSplash.classList.add("is-hiding"));
+}
+
+function renderDataRecoveryIssue(overrideMessage = "") {
+  const issue = store.getLoadIssue();
+  const message = overrideMessage || issue?.message || "";
+  dataRecoveryBanner.hidden = !message;
+  dataRecoveryMessage.textContent = message;
+}
 
 function getCompletions() {
   return store.getCompletions();
@@ -51,7 +92,85 @@ function renderRecord() {
 }
 
 function renderProfile() {
-  renderProfileView(getCompletions());
+  renderProfileView(getCompletions(), store.getProfile());
+  renderBadgeCollection(store.getBadgeUnlocks());
+}
+
+function openNicknameEditor() {
+  nicknameInput.value = store.getProfile().nickname;
+  nicknameError.textContent = "";
+  nicknameError.classList.remove("visible");
+  nicknameDialog.showModal();
+  nicknameInput.focus();
+  nicknameInput.select();
+}
+
+function showNicknameError(message) {
+  nicknameError.textContent = message;
+  nicknameError.classList.add("visible");
+}
+
+function unlockEligibleBadges() {
+  const newUnlocks = evaluateNewBadgeUnlocks(getCompletions(), store.getBadgeUnlocks());
+  store.addBadgeUnlocks(newUnlocks);
+  return newUnlocks;
+}
+
+function renderBadgeUnlockDialog() {
+  const unlock = pendingBadgeUnlocks[activeBadgeUnlockIndex];
+  const badge = getBadgeById(unlock?.badgeId);
+  if (!unlock || !badge) return;
+  badgeDialogCoin.innerHTML = achievementMarkMarkup(badge, unlock);
+  badgeDialogTitle.textContent = badge.title;
+  badgeDialogCondition.textContent = badge.condition;
+  badgeDialogStatus.textContent = `解锁于 ${formatBadgeUnlockDate(unlock.unlockedAt)}`;
+  badgeDialogProgress.textContent = pendingBadgeUnlocks.length > 1
+    ? `${activeBadgeUnlockIndex + 1} / ${pendingBadgeUnlocks.length}`
+    : "新成就";
+  badgeDialogNext.textContent = activeBadgeUnlockIndex < pendingBadgeUnlocks.length - 1 ? "下一项" : "收下成就";
+}
+
+function showBadgeUnlockDialog(unlocks) {
+  if (!unlocks.length) return;
+  pendingBadgeUnlocks = unlocks;
+  activeBadgeUnlockIndex = 0;
+  renderBadgeUnlockDialog();
+  badgeUnlockDialog.showModal();
+}
+
+function advanceBadgeUnlockDialog() {
+  if (activeBadgeUnlockIndex < pendingBadgeUnlocks.length - 1) {
+    activeBadgeUnlockIndex += 1;
+    renderBadgeUnlockDialog();
+    return;
+  }
+  badgeUnlockDialog.close();
+  pendingBadgeUnlocks = [];
+  activeBadgeUnlockIndex = 0;
+}
+
+function toggleBadgeCollection() {
+  const expanded = !badgeCollection.classList.contains("is-expanded");
+  badgeCollection.classList.toggle("is-expanded", expanded);
+  badgeCollectionToggle.setAttribute("aria-expanded", String(expanded));
+  badgeCollectionToggle.querySelector(".badge-collection-toggle-label").textContent = expanded
+    ? "收起成就"
+    : "展开全部成就";
+}
+
+function showBadgeDetailDialog(badgeId) {
+  const badge = getBadgeById(badgeId);
+  if (!badge) return;
+  const unlock = store.getBadgeUnlocks().find((item) => item.badgeId === badge.id) || null;
+  badgeDetailCoin.innerHTML = achievementMarkMarkup(badge, unlock);
+  badgeDetailTier.textContent = badge.tier === 4 ? "大师级" : `第 ${badge.tier} 级`;
+  badgeDetailTitle.textContent = badge.title;
+  badgeDetailCondition.textContent = badge.condition;
+  badgeDetailStatus.textContent = unlock
+    ? `已解锁 · ${formatBadgeUnlockDate(unlock.unlockedAt)}`
+    : "尚未解锁";
+  badgeDetailStatus.classList.toggle("is-unlocked", Boolean(unlock));
+  badgeDetailDialog.showModal();
 }
 
 function updateScheduleDateDisplay() {
@@ -74,8 +193,8 @@ function renderSelectedScheduleDates() {
   selectedDateList.innerHTML = [...selectedScheduleDates]
     .sort()
     .map((date) => `
-      <button class="selected-date-chip" type="button" data-action="remove-schedule-date" data-date="${date}" aria-label="移除 ${formatDate(date)}">
-        ${formatDate(date)} ×
+      <button class="selected-date-chip" type="button" data-action="remove-schedule-date" data-date="${escapeHtml(date)}" aria-label="移除 ${escapeHtml(formatDate(date))}">
+        ${escapeHtml(formatDate(date))} ×
       </button>`)
     .join("");
   updateScheduleDateDisplay();
@@ -88,6 +207,43 @@ function addSelectedScheduleDate() {
   renderSelectedScheduleDates();
   scheduleFormError.textContent = "";
   scheduleFormError.classList.remove("visible");
+}
+
+function getScheduledEntries(planId) {
+  return store.getSchedules()
+    .filter((schedule) => schedule.planId === planId && /^\d{4}-\d{2}-\d{2}$/.test(schedule.date))
+    .sort((left, right) => left.date.localeCompare(right.date));
+}
+
+function getScheduledDates(planId) {
+  return [...new Set(getScheduledEntries(planId).map((schedule) => schedule.date))];
+}
+
+function formatScheduledDate(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return year === new Date().getFullYear()
+    ? `${month}月${day}日`
+    : `${year}年${month}月${day}日`;
+}
+
+function scheduledDateListMarkup(dates, emptyMessage = "") {
+  if (!dates.length) {
+    return emptyMessage ? `<p class="scheduled-date-empty">${escapeHtml(emptyMessage)}</p>` : "";
+  }
+  return dates.map((date) => `
+    <time class="scheduled-date-chip" datetime="${escapeHtml(date)}">${escapeHtml(formatScheduledDate(date))}</time>`).join("");
+}
+
+function renderExistingScheduleDates() {
+  const planId = scheduleForm.elements.planId.value;
+  const schedules = getScheduledEntries(planId);
+  existingScheduleDateList.innerHTML = schedules.length
+    ? schedules.map((schedule) => `
+      <button class="scheduled-date-chip scheduled-date-remove" type="button" data-action="delete-existing-schedule" data-schedule-id="${escapeHtml(schedule.id)}" aria-label="删除 ${escapeHtml(formatScheduledDate(schedule.date))} 的训练排期">
+        <time datetime="${escapeHtml(schedule.date)}">${escapeHtml(formatScheduledDate(schedule.date))}</time>
+        <span aria-hidden="true">×</span>
+      </button>`).join("")
+    : `<p class="scheduled-date-empty">暂未安排训练日期</p>`;
 }
 
 function getPlan(id = currentPlanId, useFallback = true) {
@@ -105,22 +261,30 @@ function renderPlans() {
     return;
   }
 
-  planList.innerHTML = plans.map((plan) => `
-    <article class="plan-item card">
-      <button class="plan-item-main" type="button" data-action="open-plan" data-plan-id="${escapeHtml(plan.id)}">
-        <span>
-          <h3>${escapeHtml(plan.name)}</h3>
-          <p class="plan-meta">${plan.exercises.length} 个动作 · ${Number(plan.estimatedMinutes) || 0} 分钟</p>
-          ${plan.goal ? `<p class="plan-goal">${escapeHtml(plan.goal)}</p>` : ""}
-        </span>
-        <span class="chevron" aria-hidden="true">›</span>
-      </button>
-      <div class="plan-actions">
-        <button class="text-button" type="button" data-action="schedule-plan" data-plan-id="${escapeHtml(plan.id)}">安排日期</button>
-        <button class="text-button" type="button" data-action="edit-plan" data-plan-id="${escapeHtml(plan.id)}">编辑</button>
-        <button class="text-button danger" type="button" data-action="delete-plan" data-plan-id="${escapeHtml(plan.id)}">删除</button>
-      </div>
-    </article>`).join("");
+  planList.innerHTML = plans.map((plan) => {
+    const scheduledDates = getScheduledDates(plan.id);
+    return `
+      <article class="plan-item card">
+        <button class="plan-item-main" type="button" data-action="open-plan" data-plan-id="${escapeHtml(plan.id)}">
+          <span>
+            <h3>${escapeHtml(plan.name)}</h3>
+            <p class="plan-meta">${escapeHtml(plan.exercises.length)} 个动作 · ${escapeHtml(Number(plan.estimatedMinutes) || 0)} 分钟</p>
+            ${scheduledDates.length ? `
+              <span class="plan-schedule-summary">
+                <span class="schedule-summary-label">已安排日期</span>
+                <span class="scheduled-date-list">${scheduledDateListMarkup(scheduledDates)}</span>
+              </span>` : ""}
+            ${plan.goal ? `<p class="plan-goal">${escapeHtml(plan.goal)}</p>` : ""}
+          </span>
+          <span class="chevron" aria-hidden="true">›</span>
+        </button>
+        <div class="plan-actions">
+          <button class="text-button" type="button" data-action="schedule-plan" data-plan-id="${escapeHtml(plan.id)}">安排日期</button>
+          <button class="text-button" type="button" data-action="edit-plan" data-plan-id="${escapeHtml(plan.id)}">编辑</button>
+          <button class="text-button danger" type="button" data-action="delete-plan" data-plan-id="${escapeHtml(plan.id)}">删除</button>
+        </div>
+      </article>`;
+  }).join("");
 }
 
 function renderDetail(planId, scheduleId = null) {
@@ -134,6 +298,7 @@ function renderDetail(planId, scheduleId = null) {
   document.querySelector("#detail-card-title").textContent = `${plan.name}训练`;
   document.querySelector("#detail-goal").textContent = plan.goal ? `训练目标：${plan.goal}` : "按自己的节奏完成训练";
   document.querySelector("#detail-tag").textContent = plan.tag || "自定义计划";
+  detailScheduleDateList.innerHTML = scheduledDateListMarkup(getScheduledDates(plan.id), "暂未安排训练日期");
   document.querySelector("#detail-exercises").innerHTML = `
     <h3>训练内容</h3>
     ${plan.exercises.map((exercise, index) => {
@@ -141,7 +306,7 @@ function renderDetail(planId, scheduleId = null) {
         ? `${exercise.sets} 组 × ${exercise.durationSeconds} 秒`
         : `${exercise.sets} 组 × ${exercise.reps} 次`;
       const rest = Number(exercise.restSeconds) > 0 ? ` · 休息 ${exercise.restSeconds} 秒` : "";
-      return `<div class="exercise-row"><span class="number-dot">${index + 1}</span><span>${escapeHtml(exercise.name)} · ${amount}${rest}</span></div>`;
+      return `<div class="exercise-row"><span class="number-dot">${escapeHtml(index + 1)}</span><span>${escapeHtml(exercise.name)} · ${escapeHtml(amount)}${escapeHtml(rest)}</span></div>`;
     }).join("")}`;
   return true;
 }
@@ -155,7 +320,9 @@ function renderHome() {
   const schedules = store.getSchedules();
   const todaySchedules = schedules.filter((schedule) => schedule.date === today);
   const list = document.querySelector("#today-plan-list");
-  document.querySelector("#home-streak").textContent = `连续打卡 ${calculateStreak()} 天`;
+  const streak = calculateStreak();
+  document.querySelector("#home-streak").textContent = `连续打卡 ${streak} 天`;
+  document.querySelector("#home-badge-hint").textContent = getNextStreakBadgeHint(streak, store.getBadgeUnlocks());
 
   if (!todaySchedules.length) {
     list.innerHTML = `
@@ -179,18 +346,19 @@ function renderHome() {
       <button class="workout-card ${completed ? "completed" : ""}" type="button" style="--accent: ${accent}" data-action="open-scheduled-plan" data-plan-id="${escapeHtml(plan.id)}" data-schedule-id="${escapeHtml(schedule.id)}">
         <span class="workout-icon"></span>
         <h3>${escapeHtml(plan.name)}</h3>
-        <p>${plan.exercises.length} 个动作 · ${plan.estimatedMinutes} 分钟</p>
-        <span class="tag">${completed ? `已完成 ${completionCount} 次` : escapeHtml(plan.tag || "今日计划")}</span>
+        <p>${escapeHtml(plan.exercises.length)} 个动作 · ${escapeHtml(plan.estimatedMinutes)} 分钟</p>
+        <span class="tag">${completed ? `已完成 ${escapeHtml(completionCount)} 次` : escapeHtml(plan.tag || "今日计划")}</span>
         <span class="chevron">›</span>
       </button>`;
   }).join("");
 }
 
 function renderBackup() {
-  const { plans, schedules, completions } = store.snapshot();
+  const { plans, schedules, completions, badgeUnlocks } = store.snapshot();
   document.querySelector("#backup-plan-count").textContent = plans.length;
   document.querySelector("#backup-schedule-count").textContent = schedules.length;
   document.querySelector("#backup-completion-count").textContent = completions.length;
+  document.querySelector("#backup-badge-count").textContent = badgeUnlocks.length;
 }
 
 function showBackupStatus(message) {
@@ -200,14 +368,15 @@ function showBackupStatus(message) {
 }
 
 function exportBackup() {
-  const { plans, schedules, completions } = store.snapshot();
+  const { plans, schedules, completions, badgeUnlocks, settings } = store.snapshot();
   const payload = {
     version: 1,
     exportedAt: new Date().toISOString(),
     plans,
     schedules,
     completions,
-    settings: {}
+    badgeUnlocks,
+    settings
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -221,25 +390,22 @@ function exportBackup() {
   showBackupStatus("备份文件已导出。请把文件保存在安全的位置。");
 }
 
-function isValidBackup(data) {
-  if (!data || data.version !== 1) return false;
-  if (!Array.isArray(data.plans) || !Array.isArray(data.schedules) || !Array.isArray(data.completions)) return false;
-  if (!data.plans.every((plan) => plan && typeof plan.id === "string" && typeof plan.name === "string" && Array.isArray(plan.exercises))) return false;
-  if (!data.schedules.every((schedule) => schedule && typeof schedule.id === "string" && typeof schedule.planId === "string" && /^\d{4}-\d{2}-\d{2}$/.test(schedule.date))) return false;
-  if (!data.completions.every((completion) => completion && typeof completion.id === "string" && typeof completion.planId === "string" && /^\d{4}-\d{2}-\d{2}$/.test(completion.date))) return false;
-  return true;
-}
-
 async function importBackup(file) {
+  if (file.size > BACKUP_MAX_BYTES) {
+    showBackupStatus("导入失败：备份文件不能超过 5 MB。");
+    backupFileInput.value = "";
+    return;
+  }
+
   try {
-    const data = JSON.parse(await file.text());
-    if (!isValidBackup(data)) {
-      showBackupStatus("导入失败：文件不是有效的 FitCheck v1 备份。");
-      return;
-    }
+    const data = normalizeBackup(JSON.parse(await file.text()));
     if (!window.confirm("导入将覆盖当前设备上的全部 FitCheck 数据，确定继续吗？")) return;
 
-    store.restore(data);
+    const importedUnlocks = evaluateNewBadgeUnlocks(data.completions, data.badgeUnlocks);
+    store.restore({
+      ...data,
+      badgeUnlocks: [...data.badgeUnlocks, ...importedUnlocks]
+    });
     const { plans, schedules, completions } = store.snapshot();
     currentPlanId = plans[0]?.id || null;
     currentScheduleId = null;
@@ -249,9 +415,16 @@ async function importBackup(file) {
     renderRecord();
     renderProfile();
     renderBackup();
+    renderDataRecoveryIssue();
     showBackupStatus(`恢复完成：${plans.length} 个计划、${schedules.length} 个日期安排、${completions.length} 条完成记录。`);
-  } catch {
-    showBackupStatus("导入失败：无法读取或解析这个 JSON 文件。");
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      showBackupStatus("导入失败：无法解析这个 JSON 文件。");
+    } else if (error instanceof DataValidationError) {
+      showBackupStatus(`导入失败：${error.message}。`);
+    } else {
+      showBackupStatus("导入失败：保存未完成，导入前的数据保持不变。请检查浏览器存储空间后重试。");
+    }
   } finally {
     backupFileInput.value = "";
   }
@@ -294,7 +467,7 @@ function exerciseEditorTemplate(exercise, index) {
   return `
     <section class="exercise-editor" data-exercise-id="${escapeHtml(exercise.id || createId("exercise"))}">
       <div class="exercise-editor-header">
-        <strong>动作 ${index + 1}</strong>
+        <strong>动作 ${escapeHtml(index + 1)}</strong>
         <button class="remove-exercise" type="button" data-action="remove-exercise">删除动作</button>
       </div>
       <div class="field">
@@ -304,7 +477,7 @@ function exerciseEditorTemplate(exercise, index) {
       <div class="field-row">
         <div class="field">
           <label>组数</label>
-          <input data-field="sets" type="number" min="1" max="99" value="${Number(exercise.sets) || 1}" required />
+          <input data-field="sets" type="number" min="1" max="99" value="${escapeHtml(Number(exercise.sets) || 1)}" required />
         </div>
         <div class="field">
           <label>计量方式</label>
@@ -317,11 +490,11 @@ function exerciseEditorTemplate(exercise, index) {
       <div class="field-row">
         <div class="field">
           <label data-value-label>${exercise.mode === "duration" ? "每组秒数" : "每组次数"}</label>
-          <input data-field="value" type="number" min="1" max="9999" value="${Number(value) || 1}" required />
+          <input data-field="value" type="number" min="1" max="9999" value="${escapeHtml(Number(value) || 1)}" required />
         </div>
         <div class="field">
           <label>休息秒数</label>
-          <input data-field="restSeconds" type="number" min="0" max="3600" value="${Number(exercise.restSeconds) || 0}" required />
+          <input data-field="restSeconds" type="number" min="0" max="3600" value="${escapeHtml(Number(exercise.restSeconds) || 0)}" required />
         </div>
       </div>
       <div class="field">
@@ -366,6 +539,7 @@ function openScheduleEditor(planId = null) {
   selectedScheduleDates = new Set([dateKey()]);
   scheduleForm.elements.date.value = "";
   renderSelectedScheduleDates();
+  renderExistingScheduleDates();
   scheduleFormError.textContent = "";
   scheduleFormError.classList.remove("visible");
   editorSnapshot = getScheduleSnapshot();
@@ -406,6 +580,13 @@ function getScheduleSnapshot() {
   });
 }
 
+function removeDateFromScheduleBaseline(date) {
+  const baseline = JSON.parse(editorSnapshot || "{}");
+  if (baseline.planId !== scheduleForm.elements.planId.value || !Array.isArray(baseline.dates)) return;
+  baseline.dates = baseline.dates.filter((item) => item !== date);
+  editorSnapshot = JSON.stringify(baseline);
+}
+
 function hasUnsavedChanges() {
   if (activeScreen === "plan-editor") return getEditorSnapshot() !== editorSnapshot;
   if (activeScreen === "schedule-editor") return getScheduleSnapshot() !== editorSnapshot;
@@ -430,6 +611,13 @@ function restoreRoute(state) {
     return;
   }
   restoringHistory = true;
+  if (state.screen === "checkin" && !training.hasActiveSession()) {
+    const fallbackScreen = renderDetail(state.planId, state.scheduleId) ? "detail" : "home";
+    setScreen(fallbackScreen, { historyMode: "none" });
+    history.replaceState(routeState(fallbackScreen), "", `#${fallbackScreen}`);
+    restoringHistory = false;
+    return;
+  }
   if (state.screen === "detail") renderDetail(state.planId, state.scheduleId);
   if (state.screen === "plan-editor") {
     openEditor(state.editingPlanId);
@@ -478,13 +666,15 @@ function completeCurrentPlan({ plan, scheduleId }) {
   });
 
   const completions = getCompletions();
+  const newBadgeUnlocks = unlockEligibleBadges();
   const streak = calculateStreak();
   const todayCount = completions.filter((completion) => completion.planId === plan.id && completion.date === today).length;
   document.querySelector("#success-message").textContent = `${plan.name}已完成${todayCount > 1 ? `，今天第 ${todayCount} 次` : ""}，当前连续打卡 ${streak} 天。`;
   renderHome();
   renderRecord();
   renderProfile();
-  setScreen("success");
+  setScreen("success", { historyMode: "replace" });
+  showBadgeUnlockDialog(newBadgeUnlocks);
 }
 
 function setScreen(name, { historyMode = "auto" } = {}) {
@@ -529,6 +719,16 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  if (action === "edit-nickname") {
+    openNicknameEditor();
+    return;
+  }
+
+  if (action === "close-nickname-editor") {
+    nicknameDialog.close();
+    return;
+  }
+
   if (action === "add-exercise") {
     exerciseEditorList.insertAdjacentHTML("beforeend", exerciseEditorTemplate(emptyExercise(), exerciseEditorList.children.length));
     updateExerciseNumbers();
@@ -538,6 +738,24 @@ document.addEventListener("click", (event) => {
   if (action === "remove-schedule-date") {
     selectedScheduleDates.delete(target.dataset.date);
     renderSelectedScheduleDates();
+    return;
+  }
+
+  if (action === "delete-existing-schedule") {
+    const schedule = store.getSchedules().find((item) => item.id === target.dataset.scheduleId);
+    if (!schedule) return;
+    const plan = getPlan(schedule.planId, false);
+    const label = `${formatScheduledDate(schedule.date)}${plan ? `的“${plan.name}”` : ""}训练排期`;
+    if (!window.confirm(`确定删除${label}吗？既有训练完成记录不会受到影响。`)) return;
+    if (!store.deleteSchedule(schedule.id)) return;
+    selectedScheduleDates.delete(schedule.date);
+    removeDateFromScheduleBaseline(schedule.date);
+    if (currentScheduleId === schedule.id) currentScheduleId = null;
+    renderSelectedScheduleDates();
+    renderExistingScheduleDates();
+    renderPlans();
+    renderHome();
+    if (currentPlanId === schedule.planId) renderDetail(currentPlanId, currentScheduleId);
     return;
   }
 
@@ -588,6 +806,26 @@ document.addEventListener("click", (event) => {
 
   if (action === "toggle-training-pause") {
     training.togglePause();
+    return;
+  }
+
+  if (action === "toggle-badge-collection") {
+    toggleBadgeCollection();
+    return;
+  }
+
+  if (action === "open-badge-detail") {
+    showBadgeDetailDialog(target.dataset.badgeId);
+    return;
+  }
+
+  if (action === "close-badge-detail") {
+    badgeDetailDialog.close();
+    return;
+  }
+
+  if (action === "advance-badge-dialog") {
+    advanceBadgeUnlockDialog();
     return;
   }
 
@@ -709,10 +947,27 @@ scheduleForm.addEventListener("submit", (event) => {
 
 scheduleDateInput.addEventListener("input", updateScheduleDateDisplay);
 scheduleDateInput.addEventListener("change", addSelectedScheduleDate);
+scheduleForm.elements.planId.addEventListener("change", renderExistingScheduleDates);
 
 backupFileInput.addEventListener("change", () => {
   const [file] = backupFileInput.files;
   if (file) importBackup(file);
+});
+
+nicknameForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const nickname = nicknameInput.value.trim();
+  if (!nickname) {
+    showNicknameError("昵称不能为空。");
+    return;
+  }
+  if (nickname.length > 12) {
+    showNicknameError("昵称最多输入 12 个字符。");
+    return;
+  }
+  store.updateNickname(nickname);
+  renderProfile();
+  nicknameDialog.close();
 });
 
 window.addEventListener("keydown", (event) => {
@@ -783,14 +1038,36 @@ document.addEventListener("visibilitychange", () => {
   training.syncVisibleTimer();
 });
 
-renderPlans();
-renderDetail(currentPlanId);
-renderHome();
-renderRecord();
-renderProfile();
-renderBackup();
-const initialRoute = history.state?.fitcheck ? history.state : routeState("home");
-history.replaceState({ fitcheckGuard: true }, "", location.href);
-history.pushState(initialRoute, "", `#${initialRoute.screen}`);
-restoreRoute(initialRoute);
-setupPWA();
+badgeUnlockDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  advanceBadgeUnlockDialog();
+});
+
+badgeDetailDialog.addEventListener("close", () => {
+  badgeDetailCoin.replaceChildren();
+});
+
+function initializeApp() {
+  let startupIssue = "";
+  try {
+    unlockEligibleBadges();
+    renderPlans();
+    renderDetail(currentPlanId);
+    renderHome();
+    renderRecord();
+    renderProfile();
+    renderBackup();
+    const initialRoute = history.state?.fitcheck ? history.state : routeState("home");
+    history.replaceState({ fitcheckGuard: true }, "", location.href);
+    history.pushState(initialRoute, "", `#${initialRoute.screen}`);
+    restoreRoute(initialRoute);
+  } catch {
+    startupIssue = "本地数据未能完整载入。请前往备份与恢复页面导入有效备份。";
+  } finally {
+    renderDataRecoveryIssue(startupIssue);
+    setupPWA();
+    dismissAppSplash();
+  }
+}
+
+initializeApp();

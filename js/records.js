@@ -1,4 +1,4 @@
-import { dateKey, escapeHtml, formatDate, shiftDate } from "./utils.js";
+import { dateKey, escapeHtml, formatDate, shiftDate } from "./utils.js?v=28";
 
 export function calculateStreak(completions) {
   const completedDates = new Set(completions.map((completion) => completion.date));
@@ -37,7 +37,7 @@ function renderTrainingHeatmap(completions) {
     const date = shiftDate(startDate, index);
     const isFuture = date > today;
     const level = isFuture ? 0 : getHeatmapLevel(minutesByDate[date] || 0);
-    return `<i class="heatmap-cell level-${level}${isFuture ? " future" : ""}" aria-hidden="true"></i>`;
+    return `<i class="heatmap-cell level-${escapeHtml(level)}${isFuture ? " future" : ""}" aria-hidden="true"></i>`;
   }).join("");
 }
 
@@ -55,16 +55,22 @@ export function renderRecord(completions) {
   list.innerHTML = sorted.map((completion) => `
     <div class="record-row">
       <i class="record-status"></i>
-      <span class="record-name">${escapeHtml(completion.planName)} · ${completion.minutes} 分钟</span>
-      <span class="record-date">${formatDate(completion.date)}</span>
+      <span class="record-name">${escapeHtml(completion.planName)} · ${escapeHtml(completion.minutes)} 分钟</span>
+      <span class="record-date">${escapeHtml(formatDate(completion.date))}</span>
     </div>`).join("");
 }
 
-export function renderProfile(completions) {
+export function renderProfile(completions, profile) {
   const uniqueDays = new Set(completions.map((completion) => completion.date)).size;
   const totalMinutes = completions.reduce((sum, completion) => sum + Number(completion.minutes || 0), 0);
-  document.querySelector("#profile-summary").textContent = `已打卡 ${uniqueDays} 天 · 数据保存在本机`;
+  const nickname = profile?.nickname || "训练者";
+  const nicknameButton = document.querySelector("#profile-nickname-button");
+  document.querySelector("#profile-nickname").textContent = nickname;
+  nicknameButton.setAttribute("aria-label", `修改昵称，当前昵称为${nickname}`);
+  document.querySelector("#profile-summary").textContent = `已打卡 ${uniqueDays} 天`;
   document.querySelector("#stat-days").textContent = `${uniqueDays}天`;
-  document.querySelector("#stat-minutes").textContent = `${totalMinutes}分`;
+  const minutesElement = document.querySelector("#stat-minutes");
+  minutesElement.textContent = totalMinutes;
+  minutesElement.classList.toggle("compact", String(totalMinutes).length >= 6);
   document.querySelector("#stat-completions").textContent = `${completions.length}个`;
 }

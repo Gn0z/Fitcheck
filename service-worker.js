@@ -1,12 +1,14 @@
-const CACHE_NAME = "fitcheck-shell-v13";
+const CACHE_NAME = "fitcheck-shell-v28";
 const APP_SHELL = [
   "./fitcheck-hifi-prototype.html",
-  "./css/styles.css",
-  "./js/app.js",
-  "./js/records.js",
-  "./js/store.js",
-  "./js/training.js",
-  "./js/utils.js",
+  "./css/styles.css?v=28",
+  "./js/app.js?v=28",
+  "./js/badges.js?v=28",
+  "./js/data-validation.js?v=28",
+  "./js/records.js?v=28",
+  "./js/store.js?v=28",
+  "./js/training.js?v=28",
+  "./js/utils.js?v=28",
   "./manifest.webmanifest",
   "./app-icon.svg",
   "./icon-192.png",
@@ -16,7 +18,11 @@ const APP_SHELL = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => Promise.all(APP_SHELL.map(async (path) => {
+        const response = await fetch(path, { cache: "reload" });
+        if (!response.ok) throw new Error(`Unable to cache ${path}: ${response.status}`);
+        await cache.put(path, response);
+      })))
       .then(() => self.skipWaiting())
   );
 });
