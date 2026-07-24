@@ -1,4 +1,4 @@
-import { DataValidationError, normalizeState } from "./data-validation.js?v=28";
+import { DataValidationError, normalizeState } from "./data-validation.js?v=31";
 
 const STATE_STORAGE_KEY = "fitcheck:v1:state";
 const PLAN_STORAGE_KEY = "fitcheck:v1:plans";
@@ -168,15 +168,10 @@ export const store = Object.freeze({
     });
   },
 
-  addSchedules(items) {
-    updateState({ schedules: [...state.schedules, ...clone(items)] });
-  },
-
-  deleteSchedule(scheduleId) {
-    const schedules = state.schedules.filter((schedule) => schedule.id !== scheduleId);
-    if (schedules.length === state.schedules.length) return false;
-    updateState({ schedules });
-    return true;
+  applyScheduleChanges({ deletedScheduleIds, newSchedules }) {
+    const deletedIds = new Set(deletedScheduleIds);
+    const schedules = state.schedules.filter((schedule) => !deletedIds.has(schedule.id));
+    updateState({ schedules: [...schedules, ...clone(newSchedules)] });
   },
 
   addCompletion(completion) {

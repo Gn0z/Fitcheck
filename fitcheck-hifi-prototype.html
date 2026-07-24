@@ -10,8 +10,21 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./app-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1320x2868.png" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1260x2736.png" media="screen and (device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1206x2622.png" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1290x2796.png" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1179x2556.png" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1284x2778.png" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1170x2532.png" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1242x2688.png" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-828x1792.png" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1125x2436.png" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-1242x2208.png" media="screen and (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-750x1334.png" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="./assets/startup/fitcheck-640x1136.png" media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
   <title>FitCheck</title>
-  <link rel="stylesheet" href="./css/styles.css?v=28" />
+  <link rel="stylesheet" href="./css/styles.css?v=31" />
 </head>
 <body>
   <main class="app-shell" aria-live="polite" aria-busy="true">
@@ -140,7 +153,7 @@
           <section class="existing-schedule-panel" aria-labelledby="existing-schedule-title">
             <div class="schedule-panel-heading">
               <strong id="existing-schedule-title">已安排日期</strong>
-              <span>点击日期可删除</span>
+              <span>点击移除，保存后生效</span>
             </div>
             <div class="scheduled-date-list" id="existing-schedule-date-list" aria-live="polite"></div>
           </section>
@@ -379,28 +392,20 @@
           <h2>FitCheck</h2>
           <p>个人训练计划与打卡记录工具</p>
         </div>
-        <span class="version-pill">版本 1.4.0</span>
+        <span class="version-pill">版本 1.4.1</span>
       </section>
 
       <section class="about-updates card" aria-labelledby="about-updates-title">
-        <p class="eyebrow">1.4.0 本次更新</p>
-        <h2 id="about-updates-title">成就更轻盈，数据更可靠</h2>
+        <p class="eyebrow">1.4.1 本次更新</p>
+        <h2 id="about-updates-title">排期更稳，启动更顺</h2>
         <ul>
           <li>
-            <strong>二维训练成就</strong>
-            <span>14 项训练成就改用统一的二维图形与进阶配色，解锁条件和历史记录保持不变。</span>
+            <strong>排期统一保存</strong>
+            <span>新增和移除日期会一起等待保存，取消编辑不会改变现有排期，切换计划也不会误删其他计划的日期。</span>
           </li>
           <li>
-            <strong>排期可以删除</strong>
-            <span>已安排的训练日期现在可以直接移除，既有训练完成记录不会受到影响。</span>
-          </li>
-          <li>
-            <strong>备份恢复更安全</strong>
-            <span>导入前会完整校验备份，写入失败时保留原有数据，并兼容旧版 v1 备份。</span>
-          </li>
-          <li>
-            <strong>训练返回更稳定</strong>
-            <span>训练完成后返回详情页，刷新和前进后退不会再进入失效的训练页面。</span>
+            <strong>iPhone 启动更连贯</strong>
+            <span>从主屏幕打开时使用与应用一致的系统启动图，并与网页开屏自然衔接。</span>
           </li>
         </ul>
       </section>
@@ -458,6 +463,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./js/app.js?v=28"></script>
+  <script type="module" src="./js/app.js?v=31"></script>
 </body>
 </html>

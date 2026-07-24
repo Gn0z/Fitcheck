@@ -1,4 +1,4 @@
-import { dateKey, escapeHtml, formatDate, shiftDate } from "./utils.js?v=28";
+import { dateKey, escapeHtml, formatDate, shiftDate } from "./utils.js?v=31";
 
 export function calculateStreak(completions) {
   const completedDates = new Set(completions.map((completion) => completion.date));

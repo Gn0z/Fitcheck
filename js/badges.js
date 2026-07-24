@@ -1,4 +1,4 @@
-import { escapeHtml, shiftDate } from "./utils.js?v=28";
+import { escapeHtml, shiftDate } from "./utils.js?v=31";
 
 const badgeDefinitions = [
   { id: "streak-3", category: "streak", tier: 1, threshold: 3, title: "初燃", condition: "连续训练 3 天", unit: "天" },

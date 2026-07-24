@@ -1,9 +1,10 @@
-import { calculateStreak as calculateCompletionStreak, renderProfile as renderProfileView, renderRecord as renderRecordView } from "./records.js?v=28";
-import { achievementMarkMarkup, evaluateNewBadgeUnlocks, formatBadgeUnlockDate, getBadgeById, getNextStreakBadgeHint, renderBadgeCollection } from "./badges.js?v=28";
-import { BACKUP_MAX_BYTES, DataValidationError, normalizeBackup } from "./data-validation.js?v=28";
-import { store } from "./store.js?v=28";
-import { createTrainingController } from "./training.js?v=28";
-import { createId, dateKey, escapeHtml, formatDate } from "./utils.js?v=28";
+import { calculateStreak as calculateCompletionStreak, renderProfile as renderProfileView, renderRecord as renderRecordView } from "./records.js?v=31";
+import { achievementMarkMarkup, evaluateNewBadgeUnlocks, formatBadgeUnlockDate, getBadgeById, getNextStreakBadgeHint, renderBadgeCollection } from "./badges.js?v=31";
+import { BACKUP_MAX_BYTES, DataValidationError, normalizeBackup } from "./data-validation.js?v=31";
+import { prepareScheduleChanges } from "./scheduling.js?v=31";
+import { store } from "./store.js?v=31";
+import { createTrainingController } from "./training.js?v=31";
+import { createId, dateKey, escapeHtml, formatDate } from "./utils.js?v=31";
 
 const appShell = document.querySelector(".app-shell");
 const appSplash = document.querySelector("#app-splash");
@@ -57,6 +58,7 @@ let restoringRootGuard = false;
 let ignoreNextPopstate = false;
 let rootTouchStart = null;
 let selectedScheduleDates = new Set();
+let deletedScheduleIds = new Set();
 let pendingBadgeUnlocks = [];
 let activeBadgeUnlockIndex = 0;
 
@@ -202,9 +204,15 @@ function renderSelectedScheduleDates() {
 
 function addSelectedScheduleDate() {
   if (!scheduleDateInput.value) return;
-  selectedScheduleDates.add(scheduleDateInput.value);
+  const selectedDate = scheduleDateInput.value;
+  const planId = scheduleForm.elements.planId.value;
+  store.getSchedules()
+    .filter((schedule) => schedule.planId === planId && schedule.date === selectedDate)
+    .forEach((schedule) => deletedScheduleIds.delete(schedule.id));
+  selectedScheduleDates.add(selectedDate);
   scheduleDateInput.value = "";
   renderSelectedScheduleDates();
+  renderExistingScheduleDates();
   scheduleFormError.textContent = "";
   scheduleFormError.classList.remove("visible");
 }
@@ -236,7 +244,8 @@ function scheduledDateListMarkup(dates, emptyMessage = "") {
 
 function renderExistingScheduleDates() {
   const planId = scheduleForm.elements.planId.value;
-  const schedules = getScheduledEntries(planId);
+  const schedules = getScheduledEntries(planId)
+    .filter((schedule) => !deletedScheduleIds.has(schedule.id));
   existingScheduleDateList.innerHTML = schedules.length
     ? schedules.map((schedule) => `
       <button class="scheduled-date-chip scheduled-date-remove" type="button" data-action="delete-existing-schedule" data-schedule-id="${escapeHtml(schedule.id)}" aria-label="删除 ${escapeHtml(formatScheduledDate(schedule.date))} 的训练排期">
@@ -537,6 +546,7 @@ function openScheduleEditor(planId = null) {
   select.innerHTML = plans.map((plan) => `
     <option value="${escapeHtml(plan.id)}" ${plan.id === planId ? "selected" : ""}>${escapeHtml(plan.name)}</option>`).join("");
   selectedScheduleDates = new Set([dateKey()]);
+  deletedScheduleIds = new Set();
   scheduleForm.elements.date.value = "";
   renderSelectedScheduleDates();
   renderExistingScheduleDates();
@@ -576,15 +586,9 @@ function getEditorSnapshot() {
 function getScheduleSnapshot() {
   return JSON.stringify({
     planId: scheduleForm.elements.planId.value,
-    dates: [...selectedScheduleDates].sort()
+    dates: [...selectedScheduleDates].sort(),
+    deletedScheduleIds: [...deletedScheduleIds].sort()
   });
-}
-
-function removeDateFromScheduleBaseline(date) {
-  const baseline = JSON.parse(editorSnapshot || "{}");
-  if (baseline.planId !== scheduleForm.elements.planId.value || !Array.isArray(baseline.dates)) return;
-  baseline.dates = baseline.dates.filter((item) => item !== date);
-  editorSnapshot = JSON.stringify(baseline);
 }
 
 function hasUnsavedChanges() {
@@ -744,18 +748,10 @@ document.addEventListener("click", (event) => {
   if (action === "delete-existing-schedule") {
     const schedule = store.getSchedules().find((item) => item.id === target.dataset.scheduleId);
     if (!schedule) return;
-    const plan = getPlan(schedule.planId, false);
-    const label = `${formatScheduledDate(schedule.date)}${plan ? `的“${plan.name}”` : ""}训练排期`;
-    if (!window.confirm(`确定删除${label}吗？既有训练完成记录不会受到影响。`)) return;
-    if (!store.deleteSchedule(schedule.id)) return;
+    deletedScheduleIds.add(schedule.id);
     selectedScheduleDates.delete(schedule.date);
-    removeDateFromScheduleBaseline(schedule.date);
-    if (currentScheduleId === schedule.id) currentScheduleId = null;
     renderSelectedScheduleDates();
     renderExistingScheduleDates();
-    renderPlans();
-    renderHome();
-    if (currentPlanId === schedule.planId) renderDetail(currentPlanId, currentScheduleId);
     return;
   }
 
@@ -917,27 +913,30 @@ scheduleForm.addEventListener("submit", (event) => {
   const planId = scheduleForm.elements.planId.value;
   const dates = [...selectedScheduleDates].sort();
   if (!getPlan(planId, false)) return showScheduleError("请选择一个有效的训练计划。");
-  if (!dates.length) return showScheduleError("请至少选择一个训练日期。");
   const schedules = store.getSchedules();
-  const existingDates = new Set(
-    schedules
-      .filter((schedule) => schedule.planId === planId)
-      .map((schedule) => schedule.date)
-  );
-  const newDates = dates.filter((date) => !existingDates.has(date));
-  if (!newDates.length) return showScheduleError("这个计划已安排在全部所选日期，无需重复添加。");
   const createdAt = new Date().toISOString();
-  const newSchedules = newDates.map((date) => ({
-    id: createId("schedule"),
+  const changes = prepareScheduleChanges({
     planId,
-    date,
-    createdAt
-  }));
-  store.addSchedules(newSchedules);
+    selectedDates: dates,
+    schedules,
+    deletedScheduleIds: [...deletedScheduleIds],
+    createdAt,
+    createScheduleId: () => createId("schedule")
+  });
+  if (changes.error === "date_required") return showScheduleError("请至少选择一个训练日期。");
+  if (changes.error === "dates_already_scheduled") {
+    return showScheduleError("这个计划已安排在全部所选日期，无需重复添加。");
+  }
+  store.applyScheduleChanges(changes);
+  if (currentScheduleId && changes.deletedScheduleIds.includes(currentScheduleId)) {
+    currentScheduleId = null;
+  }
+  deletedScheduleIds = new Set();
   editorSnapshot = getScheduleSnapshot();
   renderPlans();
   renderHome();
-  if (newDates.includes(dateKey())) {
+  if (currentPlanId) renderDetail(currentPlanId, currentScheduleId);
+  if (changes.newDates.includes(dateKey())) {
     setScreen("home", { historyMode: "replace" });
   } else {
     skipNextLeaveGuard = true;
@@ -947,7 +946,12 @@ scheduleForm.addEventListener("submit", (event) => {
 
 scheduleDateInput.addEventListener("input", updateScheduleDateDisplay);
 scheduleDateInput.addEventListener("change", addSelectedScheduleDate);
-scheduleForm.elements.planId.addEventListener("change", renderExistingScheduleDates);
+scheduleForm.elements.planId.addEventListener("change", () => {
+  deletedScheduleIds = new Set();
+  renderExistingScheduleDates();
+  scheduleFormError.textContent = "";
+  scheduleFormError.classList.remove("visible");
+});
 
 backupFileInput.addEventListener("change", () => {
   const [file] = backupFileInput.files;

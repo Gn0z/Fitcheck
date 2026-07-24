@@ -73,3 +73,63 @@ test("loads and migrates valid legacy keys", async () => {
   assert.ok(storage.getItem(STATE_KEY));
   assert.equal(store.getLoadIssue(), null);
 });
+
+test("applies schedule additions and deletions in one atomic write", async () => {
+  const storage = new LocalStorageMock();
+  const store = await loadStore(storage);
+  const existing = {
+    id: "schedule-existing",
+    planId: "plan-core-awakening",
+    date: "2026-07-24",
+    createdAt: "2026-07-24T00:00:00.000Z"
+  };
+  const added = {
+    id: "schedule-added",
+    planId: "plan-core-awakening",
+    date: "2026-07-25",
+    createdAt: "2026-07-24T01:00:00.000Z"
+  };
+  store.applyScheduleChanges({
+    deletedScheduleIds: [],
+    newSchedules: [existing]
+  });
+
+  store.applyScheduleChanges({
+    deletedScheduleIds: [existing.id],
+    newSchedules: [added]
+  });
+
+  assert.deepEqual(store.getSchedules(), [added]);
+  assert.deepEqual(JSON.parse(storage.getItem(STATE_KEY)).schedules, [added]);
+});
+
+test("does not partially apply schedule changes when persistence fails", async () => {
+  const storage = new LocalStorageMock();
+  const store = await loadStore(storage);
+  const existing = {
+    id: "schedule-existing",
+    planId: "plan-core-awakening",
+    date: "2026-07-24",
+    createdAt: "2026-07-24T00:00:00.000Z"
+  };
+  const added = {
+    id: "schedule-added",
+    planId: "plan-core-awakening",
+    date: "2026-07-25",
+    createdAt: "2026-07-24T01:00:00.000Z"
+  };
+  store.applyScheduleChanges({
+    deletedScheduleIds: [],
+    newSchedules: [existing]
+  });
+  const before = store.snapshot();
+  storage.failWrites = true;
+
+  assert.throws(() => {
+    store.applyScheduleChanges({
+      deletedScheduleIds: [existing.id],
+      newSchedules: [added]
+    });
+  }, /Quota exceeded/);
+  assert.deepEqual(store.snapshot(), before);
+});
